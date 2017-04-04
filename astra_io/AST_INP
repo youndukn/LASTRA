@@ -1,0 +1,54 @@
+%%JOB_TYP
+        PLANT           = SKN3
+        CYCLE           = 2
+        TABLE_SET       = ./S301EOCDEP/KMSKN56CYN_XSE.XS
+        FORM_FUNCTION   = ./S301EOCDEP/KMSKN56CYN_XSE.FF
+        GEOMETRY_FILE   = ./S301EOCDEP/S301EOCDEP.GMT
+        RESTART_FILE    = ./S301EOCDEP/S301EOCDEP.RFA
+        RESTART_STEP    = 3
+        DATABASE_FILE   = ./S301EOCDEP/db_core_APR1400_rev01
+        DATABASE_FUEL   = PLUS7_Common_12cb
+        TITLE           = (SK34 CY-2 SHUFFLING AND DEPLETION FROM CY-1 EOC NEP)
+%LPD_PUL
+        OVERHAUL_TIME(1) = 30.0
+%LPD_SHF
+	SHUFFL(1) = 1  M  10 0, 1  K  12 3, F  D2    0, 1  J  17 3, 1  J  16 3, F  D2    0, 1  J  11 3, F  D2    0, 1  K  10 3, 
+	SHUFFL(2) = 1  K  12 2, F  D1    0, 1  N  11 0, F  D2    0, 1  S  13 0, 1  S  12 2, F  D2    0, 1  S  14 0, F  D0    0, 
+	SHUFFL(3) = F  D2    2, 1  L  13 0, F  D2    0, 1  R  11 0, 1  R  13 3, F  D2    0, 1  P  12 0, F  D1    0, 1  T  10 2, 
+	SHUFFL(4) = 1  J  17 2, F  D2    0, 1  L  15 0, 1  R  15 2, F  D2    0, 1  S  10 2, F  D1    0, 1  S  11 0, 1  R  14 2, 
+	SHUFFL(5) = 1  J  16 2, 1  N  16 0, 1  N  15 1, F  D2    0, 1  L  11 2, F  D2    0, 1  T  11 2, F  D0    0, 
+	SHUFFL(6) = F  D2    2, 1  M  16 2, F  D2    0, 1  K  16 2, F  D2    0, 1  N  13 0, F  D1    0, 1  T  12 2, 
+	SHUFFL(7) = 1  J  11 2, F  D2    0, 1  M  14 0, F  D1    0, 1  L  17 2, F  D1    0, 1  P  14 2, 
+	SHUFFL(8) = F  D2    2, 1  P  16 0, F  D1    0, 1  L  16 0, F  D0    0, 1  M  17 2, 
+	SHUFFL(9) = 1  K  10 2, F  D0    0, 1  K  17 2, 1  P  15 2, 
+%LPD_B&C                                                        
+        FUEL_DB(D0) = PLUS7_Common_12cb   D0   D12
+        FUEL_DB(D1) = PLUS7_Common_12cb   D1   D12
+        FUEL_DB(D2) = PLUS7_Common_12cb   D2   D12
+%DEF_MSC
+	       B10_ABN = 19.8
+%EXE_STD
+        SEARCH      = boron     # Search option
+        XENON       = eq        # Xenon option
+        SAMARIUM    = tr        # Samarium option
+        REL_POWER   = 1.0       # Relative power
+        MOD_TEMP    = on        # Moderator temperature feedback option
+        MOD_DENSITY = on        # Moderator density feedback option
+        FUEL_TEMP   = on        # Fuel temperature feedback option
+%EXE_DEP
+        DEPL_TIME_DAY = 0.0     #  0.0  MWD/MTU							
+        KEFF_TARGET  = 1.0007 + (1.0020-1.0007)*BU/17704
+%EDT_FLE
+        SUMMARY_FILE  = ./test_XASTRA
+%EDT_OPT
+        FLUX        = 0         # Print-out of flux data
+        NODEWISE    = 1         # Print-out of node data 
+        FLUENCE     = 0
+        BURNUP      = 2
+%EXE_ROD
+
+/
+%EXE_DEP
+        DEPL_TIME_MWD  =   50    #2      50 MWD/MTU
+/
+END
