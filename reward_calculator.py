@@ -3,26 +3,11 @@ from astra import Astra
 class RewardCalculator:
     def __init__(self, astra_input_reader):
         self.__astra_input_reader = astra_input_reader
-        self.__burnup_max = 100000
-        self.__cbc_max = 3000
-        self.__fr_max = 3
-        self.__fz_max = 3
-        self.__fxy_max = 3
-        self.__fq_max = 3
+        self.numb = 6
+        self.max = [100000, 3000, 3, 3, 3, 3]
+        self.dev = [0 for i in range(6)]
+        self.dev_p = [64.39, 22.8, 0.08, 0.004, 0.10, 0.088]
 
-        self.__burnup_d = 0
-        self.__cbc_d = 0
-        self.__fr_d = 0
-        self.__fz_d = 0
-        self.__fxy_d = 0
-        self.__fq_d = 0
-
-        self.__burnup_d_pre= 64.39
-        self.__cbc_d_pre = 22.8
-        self.__fr_d_pre = 0.08
-        self.__fz_d_pre = 0.004
-        self.__fxy_d_pre = 0.10
-        self.__fq_d_pre = 0.088
 
     def calculate_rate(self):
         astra = Astra(self.__astra_input_reader)
@@ -45,12 +30,8 @@ class RewardCalculator:
 
         astra.reset()
 
-        burnup_d = 0
-        cbc_d = 0
-        fr_d = 0
-        fz_d = 0
-        fxy_d = 0
-        fq_d = 0
+        dev = [i for i in range(self.numb)]
+
         number = 0
 
         while number < 100:
@@ -64,27 +45,26 @@ class RewardCalculator:
                 number += 1
                 burnup, cbc, fr, fz, fxy, fq = self.get_parameters(lists)
 
-                burnup_d += abs(burnup - pre_burnup)
-                cbc_d += abs(cbc - pre_cbc)
-                fr_d += abs(fr - pre_fr)
-                fz_d += abs(fz - pre_fz)
-                fxy_d += abs(fxy - pre_fxy)
-                fq_d += abs(fq - pre_fq)
+                dev[0] += abs(burnup - pre_burnup)
+                dev[1] += abs(cbc - pre_cbc)
+                dev[2] += abs(fr - pre_fr)
+                dev[3] += abs(fz - pre_fz)
+                dev[4] += abs(fxy - pre_fxy)
+                dev[5] += abs(fq - pre_fq)
+
                 print()
                 print(burnup, cbc, fr, fxy, fq)
-                print(burnup_d, cbc_d, fr_d, fxy_d, fq_d)
+                print(dev[0], dev[1], dev[2], dev[3], dev[4])
                 pre_burnup, pre_cbc, pre_fr, pre_fz, pre_fxy, pre_fq = self.get_parameters(lists)
 
             if changed and not info:
                 astra.reset()
+        for i, value in enumerate(dev):
+            self.dev[i] = value/number
 
-        self.__burnup_d = burnup_d/number
-        self.__cbc_d = cbc_d / number
-        self.__fr_d = fr_d / number
-        self.__fz_d = fz_d / number
-        self.__fxy_d = fxy_d / number
-        self.__fq_d = fq_d / number
-        print(self.__burnup_d, self.__cbc_d, self.__fr_d, self.__fz_d, self.__fxy_d, self.__fq_d)
+        for value in self.dev:
+            print(value)
+
     @staticmethod
     def get_parameters(lists):
         burnup = 0
