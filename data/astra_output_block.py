@@ -38,9 +38,9 @@ class AstraOutputCoreBlock(AstraOutputBlock):
     def finalize(self):
         for key_in_dic in self.dictionary.keys():
             if "Y/X" in key_in_dic:
-                self.cores.append(self.get_core_data(self.dictionary[key_in_dic]))
+                self.cores.append(self.__get_core_data(self.dictionary[key_in_dic]))
 
-    def get_core_data(self, value):
+    def __get_core_data(self, value):
 
         core = Core(self.block_name)
 

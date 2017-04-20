@@ -1,4 +1,5 @@
 import re
+import os
 
 from data.assembly import Assembly
 from data.assembly import FreshAssembly
@@ -36,6 +37,12 @@ class AstraBlock:
                 value_temp = self.dictionary[key]
 
         value_temp += " " + value
+
+        key = key.lstrip()
+        key = key.rstrip()
+        value_temp = value_temp.lstrip()
+        value_temp = value_temp.rstrip()
+
         self.dictionary[key] = value_temp
 
     def set_value_separator(self, separator):
@@ -80,7 +87,7 @@ class AstraShuffleBlock(AstraBlock):
         string = super().print_block()
         for row in range(0, self.core.max_row):
             if type(self.core.assemblies[row][0]) is Assembly: break
-            string += "\t{}({}) = ".format(self.key_names[0],row+1)
+            string += "\t{}({}) = ".format(self.key_names[0], row+1)
             for col in range(0, self.core.max_col):
                 if type(self.core.assemblies[row][col]) is Assembly: break
                 string += self.core.assemblies[row][col].print_assembly() + ' '
@@ -107,3 +114,65 @@ class AstraBatchBlock(AstraBlock):
         for key in self.dictionary.keys():
             string += "\t{} = {}\n".format(key, self.dictionary[key])
         return string
+
+class AstraSingleBlock(AstraBlock):
+
+    def __init__(self, block_name, key_names):
+        super(AstraSingleBlock, self).__init__(block_name)
+        self.key_names = key_names
+
+    def finalize(self):
+        return
+
+    def print_block(self):
+        string = super().print_block()
+        for key in self.dictionary.keys():
+            string += "\t{} = {}\n".format(key, self.dictionary[key])
+        return string
+
+class AstraDirectoryBlock(AstraSingleBlock):
+
+    def __init__(self, block_name, key_names, dir_key_names):
+        super(AstraDirectoryBlock, self).__init__(block_name, key_names)
+        self.directory_keys = dir_key_names
+
+    def finalize(self):
+        for key in self.dictionary.keys():
+            value = self.dictionary[key]
+            if key in self.directory_keys:
+                self.dictionary[key] = os.path.abspath(value)
+        return
+
+
+class AstraJobBlock(AstraDirectoryBlock):
+
+    def __init__(self):
+        keywords_in_order = ("CYCLE",
+                             "PLANT",
+                             "TABLE_SET",
+                             "FORM_FUNCTION",
+                             "GEOMETRY_FILE",
+                             "RESTART_FILE",
+                             "RESTART_STEP",
+                             "DATABASE_FILE",
+                             "DATABASE_FUEL",
+                             "TITLE")
+
+        super(AstraJobBlock, self).__init__("JOB_TYP"
+                                            ,
+                                            keywords_in_order
+                                            ,
+                                            ("TABLE_SET",
+                                             "FORM_FUNCTION",
+                                             "GEOMETRY_FILE",
+                                             "RESTART_FILE",
+                                             "DATABASE_FILE",)
+                                            )
+        self.print_order = keywords_in_order
+
+    def print_block(self):
+        string = self.delimiter + self.block_name + "\n"
+        for key in self.print_order:
+            string += "\t{} = {}\n".format(key, self.dictionary[key])
+        return string
+

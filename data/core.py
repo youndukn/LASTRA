@@ -12,18 +12,35 @@ class Core:
         self.batches = []
 
     def set_batches(self, batches):
+        """
+        Set deep copcy of batch types and sort them
+        :param batches: batches to be used
+        :return:
+        """
         self.batches = sorted(copy.deepcopy(batches))
 
     def set_shuffle_at(self, assembly, row, col):
+        """
+        Set shuffling information at row and col
+        :param assembly: assembly to be copied
+        :param row: row
+        :param col: col
+        :return: success
+        """
         if row >= self.max_row or col >= self.max_row:
             raise IndexError("Maximum row {}, : col {}".format(self.max_row, self.max_col))
         if not issubclass(type(assembly), Assembly):
             return False
-        self.assemblies[row][col] = assembly
+        self.assemblies[row][col] = copy.deepcopy(assembly)
         return True
 
     def shuffle(self, position1, position2):
-
+        """
+        Shuffle assemblies at position1 and position2
+        :param position1: row and col of first point
+        :param position2: row and col of second point
+        :return: Success
+        """
         if type(self.assemblies[position1[0]][position1[1]]) is Assembly or \
                         type(self.assemblies[position2[0]][position2[1]]) is Assembly:
             return False
@@ -35,14 +52,14 @@ class Core:
         q2 = self.get_quadrant(position2)
 
         if q1 == 0 and q2 == 0:
-            self.swap_assemblies(position1, position2)
+            self.__swap_assemblies(position1, position2)
             return True
         elif q1 == q2:
-            self.swap_assemblies(position1, position2)
-            self.swap_assemblies(sym_posi1, sym_posi2)
+            self.__swap_assemblies(position1, position2)
+            self.__swap_assemblies(sym_posi1, sym_posi2)
             return True
         elif q1 == 0 and q2 != 3:
-            self.swap_assemblies(position1, position2)
+            self.__swap_assemblies(position1, position2)
             self.copy_assembly(position2, sym_posi2)
             if type(self.assemblies[sym_posi2[0]][sym_posi2[1]]) is FreshAssembly:
                 return True
@@ -55,7 +72,7 @@ class Core:
                 self.assemblies[sym_posi2[0]][sym_posi2[1]].rotate()
                 return True
         elif q2 == 0 and q1 != 3:
-            self.swap_assemblies(position1, position2)
+            self.__swap_assemblies(position1, position2)
             self.copy_assembly(position1, sym_posi1)
             if type(self.assemblies[sym_posi1[0]][sym_posi1[1]]) is FreshAssembly:
                 return True
@@ -71,34 +88,50 @@ class Core:
         return False
 
     def rotate(self, position):
-
+        """
+        Rotate assembly at position
+        :param position:
+        :return: Success
+        """
         if type(self.assemblies[position[0]][position[1]]) is not ShuffleAssembly:
-            return
+            return False
 
         self.assemblies[position[0]][position[1]].rotate()
         if position[0] != position[1]:
             self.assemblies[position[1]][position[0]].rotate()
-        return
+
+        return True
 
     def poison(self, position, increase):
+        """
+        Poison Rod Batch Increase
+        :param position:
+        :param increase:
+        :return:
+        """
+        if len(self.batches) == 0:
+            raise IOError("Batches not found in core".format(self.max_row, self.max_col))
+
         assembly = self.assemblies[position[0]][position[1]]
 
-        if type(assembly) is FreshAssembly:
-            batch = assembly.get_batch()
-            batch_found = None
-            if increase:
-                for x in range(len(self.batches) - 1):
-                    if batch == self.batches[x]:
-                        batch_found = self.batches[x + 1]
-            else:
-                for x in range(1, len(self.batches)):
-                    if batch == self.batches[x]:
-                        batch_found = self.batches[x - 1]
+        if type(assembly) is not FreshAssembly:
+            return False
 
-            if batch_found:
-                self.assemblies[position[0]][position[1]].set_batch(batch_found)
-                self.assemblies[position[1]][position[0]].set_batch(batch_found)
-                return True
+        batch = assembly.get_batch()
+        batch_found = None
+        if increase:
+            for x in range(len(self.batches) - 1):
+                if batch == self.batches[x]:
+                    batch_found = self.batches[x + 1]
+        else:
+            for x in range(1, len(self.batches)):
+                if batch == self.batches[x]:
+                    batch_found = self.batches[x - 1]
+
+        if batch_found:
+            self.assemblies[position[0]][position[1]].set_batch(batch_found)
+            self.assemblies[position[1]][position[0]].set_batch(batch_found)
+            return True
 
         return False
 
@@ -115,14 +148,14 @@ class Core:
 
         return True
 
-    @staticmethod
-    def sym(position):
-        return [position[1], position[0]]
-
-    def swap_assemblies(self, position1, position2):
+    def __swap_assemblies(self, position1, position2):
         assembly_temp = self.assemblies[position1[0]][position1[1]]
         self.assemblies[position1[0]][position1[1]] = self.assemblies[position2[0]][position2[1]]
         self.assemblies[position2[0]][position2[1]] = assembly_temp
+
+    @staticmethod
+    def sym(position):
+        return [position[1], position[0]]
 
     @staticmethod
     def get_quadrant(position):

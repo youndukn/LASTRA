@@ -8,13 +8,13 @@ class AstraOutputReader:
     def __init__(self, output_name=None, output_string=None):
         """
         Define all blocks to be used in blocks
-        :param input_name:
+        :param output_name: output to parse
+        :param output_string: output string to parse
         """
-        self.tag = "Astra_Output_Reader"
-        self.output_string = output_string
-        if output_name:
-            self.output_string = open(output_name, "r").read()
+        # output string setting
+        self.set_output_string(output_name, output_string)
 
+        # output block to parse
         self.blocks = [
             AstraOutputCoreBlock("P2DN", ["Y/X"]),
             AstraOutputCoreBlock("B2D", ["Y/X"]),
@@ -25,8 +25,16 @@ class AstraOutputReader:
             AstraOutputBlock("WARN")
         ]
 
-    def set_output_string(self, value):
-        self.output_string = value
+    def set_output_string(self, output_name=None, output_string=None):
+        """
+        Replace output string with value
+        :param block_name: block name to find
+        :return: block string that was found
+        """
+        # Read Output and
+        self.output_string = output_string
+        if output_name:
+            self.output_string = open(output_name, "r").read()
 
     def get_block_content(self, block_name):
         """
@@ -62,7 +70,6 @@ class AstraOutputReader:
                     astra_block = block
                     break
             # Separator String
-
 
             if len(astra_block.key_names) > 0:
 
@@ -137,3 +144,4 @@ class AstraOutputReader:
         if not astra_block:
             raise InputError(block_name + "Not Found")
         return astra_block
+

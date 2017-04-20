@@ -13,7 +13,7 @@
         OVERHAUL_TIME(1) = 30.0
 %LPD_SHF
         SHUFFL(1) = 1 M 10 0 ,  1 K 12 3,  F D2   0,  1 J 17 3,  1 J 16 3,  F D2   0,  1 J 11 3,  F D2   0,  1 K 10 3
-        SHUFFL(2) = 1 K 12 2 ,  F D1   0,  1 N 11 0,  F D2   0, 1 S 13 0,  1 S 12 2,  F D2   0 , 1 S 14 0,  F D0   0
+        SHUFFL(2) = 1 K 12 2 ,  F D1   0,  1 N 11 0,  F D2   0,  1 S 13 0,  1 S 12 2,  F D2   0 , 1 S 14 0,  F D0   0
         SHUFFL(3) = F D2   2 ,  1 L 13 0,  F D2   0,  1 R 11 0,  1 R 13 3,  F D2   0,  1 P 12 0,  F D1   0,  1 T 10 2
         SHUFFL(4) = 1 J 17 2 ,  F D2   0,  1 L 15 0,  1 R 15 2,  F D2   0,  1 S 10 2,  F D1   0,  1 S 11 0,  1 R 14 2
         SHUFFL(5) = 1 J 16 2 ,  1 N 16 0,  1 N 15 1,  F D2   0,  1 L 11 2,  F D2   0,  1 T 11 2,  F D0   0
@@ -41,6 +41,11 @@
 %EDT_OPT
         NODEWISE    = 1         # Print-out of node data
         BURNUP      = 2
+        XS          = 0
+        FEEDBACK    = 0
+        FLUX        = 0
+        FLUENCE     = 0
+        POWER       = 0
 %EXE_ROD
 
 /

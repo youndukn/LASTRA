@@ -1,7 +1,11 @@
+"""
+1. Should Include the checker for the input error when it is first created
+2. EDT_OPT to change to renovate
+"""
+
 import re
 
-from data.astra_block import AstraBatchBlock
-from data.astra_block import AstraShuffleBlock
+from data.astra_block import AstraBatchBlock, AstraShuffleBlock, AstraJobBlock
 from error import InputError
 
 
@@ -10,21 +14,22 @@ class AstraInputReader:
     def __init__(self, input_name=None):
         """
         Define all blocks to be used in blocks
-        :param input_name:
+        :param input_name: ASTRA input name, cannot be None
         """
-        self.tag = "Astra_Input_Reader"
-        self.input = input_name
-        self.file = open(self.input, "r")
-        self.input_string = self.file.read()
-        self.file.close()
+
         self.blocks = [AstraShuffleBlock(),
-                       AstraBatchBlock()]
+                       AstraBatchBlock(),
+                       AstraJobBlock()]
 
+        self.input = input_name
+        file = open(self.input, "r")
+        self.input_string = file.read()
 
+        file.close()
 
     def get_block_content(self, block_name):
         """
-        Remove comments and find the block from ASTRA Input file
+        Remove comments and find the block content from ASTRA Input file
         :param block_name: block name to find
         :return: block string that was found
         """
@@ -63,7 +68,6 @@ class AstraInputReader:
                         value = split_line[0]
                     elif length > 2:
                         raise InputError(
-                            self.tag +
                             "Multi Keyword in one line not supported")
                     astra_block.add_key_for_value(key, value)
 
@@ -79,20 +83,21 @@ class AstraInputReader:
         :param astra_block:
         :return:
         """
-        block = astra_blocks[0]
+
         string = ""
-        blocks = re.split(block.delimiter, self.input_string)
-        first_block = True
+        blocks = re.split(astra_blocks[0].delimiter, self.input_string)
+        block_found = False
         for block in blocks:
             for astra_block in astra_blocks:
-
                 if astra_block.block_name in block:
-                    string += astra_block.print_block()
-                else:
-                    if not first_block:
-                        string += "%" + block
+                    block_found = True
+                    break
 
-                first_block = False
+            if block_found:
+                string += astra_block.print_block()
+                block_found = False
+            elif len(block) > 0:
+                string += "%" + block
 
         return string
 
@@ -122,6 +127,10 @@ class AstraInputReader:
         return astra_block
 
     def handle_relation(self, astra_block):
+        """
+        Handle all relationship between astra blocks
+        :param astra_block: ASTRA block to set relation
+        """
         if type(astra_block) == AstraBatchBlock:
             for astra_block_temp in self.blocks:
                 if type(astra_block_temp) == AstraShuffleBlock:

@@ -4,16 +4,7 @@ import sys
 from astra_io.astra_input_reader import AstraInputReader
 from reward_calculator import RewardCalculator
 
-reading = AstraInputReader("01_s3c02p_nep_depl.job")
 
-astra_collector = []
-
-#SHUFFLE
-for astra_block in reading.blocks:
-    reading.parse_block_content(astra_block.block_name)
-
-cal = RewardCalculator(reading)
-cal.calculate_rate()
 
 
 #reading.replace_block_to_name(reading.blocks[0], "AST_INP")
@@ -40,16 +31,23 @@ cal.calculate_rate()
 #file = open("outp", 'wb')
 #print(running_proc.communicate(input=input_string.read())[0].decode('utf-8'))
 
-
-
 #outfile = open("hello.out", "wb")
 #outfile.write(out)
-
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--x', type=float, default=0.0, help='helper')
     args = parser.parse_args()
+
+    reading = AstraInputReader("01_s3c02p_nep_depl.job")
+
+    # SHUFFLE
+    for astra_block in reading.blocks:
+        reading.parse_block_content(astra_block.block_name)
+
+    cal = RewardCalculator(reading)
+    cal.calculate_rate()
+
     print(args.x)
 
 if __name__ == '__main__':

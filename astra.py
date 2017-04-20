@@ -1,8 +1,11 @@
+#System Module
 from subprocess import Popen, PIPE
-from astra_io.astra_output_reader import AstraOutputReader
 from random import randint
 import subprocess
 import copy
+import os
+
+from astra_io.astra_output_reader import AstraOutputReader
 
 class Astra():
     def __init__(self, astra_input_reader):
@@ -21,11 +24,12 @@ class Astra():
 
         self.max_row = 10
         self.max_col = 10
-        self.max_position = self.max_row * (self.max_col - 1) / 2 + self.max_row
         self.position = []
         self.set_oct_position()
+        self.max_position = self.max_row * (self.max_col - 1) / 2 + self.max_row
         self.absolute_reward = 0
         self.original_reward = 0
+        self.working_directory = ".{}".format(os.path.sep)
 
     def make(self):
         output_string = self.run_astra(self.astra_input_reader.blocks[0])
@@ -39,9 +43,7 @@ class Astra():
             return False
 
     def reset(self):
-        print(self.astra_input_reader.blocks[0].print_block())
         self.astra_input_reader.blocks[0].core = copy.deepcopy(self.original_core)
-        print(self.astra_input_reader.blocks[0].print_block())
         self.absolute_reward = self.original_reward
         return
 
@@ -70,38 +72,50 @@ class Astra():
         if not changed:
             return shuffle_block.core, 0.0, changed, False
 
+        return self.run_process_astra(shuffle_block)
+
+    def run_process_astra(self, shuffle_block = None):
+
+        if not shuffle_block:
+            shuffle_block = self.astra_input_reader.blocks[0]
+
         output_string = self.run_astra(shuffle_block)
 
         if output_string:
+
             reading_out = AstraOutputReader(output_string=output_string)
             reading_out.parse_block_contents()
+
             if len(reading_out.blocks[5].dictionary) > 0:
                 for key in reading_out.blocks[5].dictionary.keys():
                     print(reading_out.blocks[5].dictionary[key])
-                return shuffle_block.core, 0.0, changed, False
+                return shuffle_block.core, 0.0, True, False
 
             if len(reading_out.blocks[6].dictionary) > 0:
                 for key in reading_out.blocks[6].dictionary.keys():
                     print(reading_out.blocks[6].dictionary[key])
-                return shuffle_block.core, 0.0, changed, False
+                return shuffle_block.core, 0.0, True, False
 
-            return shuffle_block.core, reading_out.blocks[3].lists, changed, True
+            return shuffle_block.core, reading_out.blocks[3].lists, True, True
 
-        return shuffle_block.core, 0.0, changed, False
+        return shuffle_block.core, 0.0, True, False
 
     def step(self, m_position1, position2):
-
         core, lists, changed, info = self.change(m_position1, position2)
         return core, self.calculate_reward(lists), info, changed
 
     def run_astra(self, shuffle_block):
-        replaced = self.astra_input_reader.replace_block([shuffle_block])
-        try:
-            how_many = 50
-            p = Pool(processes = how_many)
 
-            p = subprocess.Popen(['astra'], stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
-            return (p.communicate(input=replaced.encode('utf-8'))[0]).decode('utf-8')
+        replaced = self.astra_input_reader.replace_block([shuffle_block, self.astra_input_reader.blocks[2]])
+
+        try:
+            p = subprocess.Popen(['astra'],
+                                 stdout=subprocess.PIPE,
+                                 stdin=subprocess.PIPE,
+                                 shell=True,
+                                 cwd=self.working_directory)
+            output = (p.communicate(input=replaced.encode('utf-8'))[0]).decode('utf-8')
+            return output
         except subprocess.CalledProcessError:
             print("Error in running astra")
             return None
