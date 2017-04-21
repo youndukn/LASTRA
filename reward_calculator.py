@@ -1,11 +1,8 @@
 #system modules
 from queue import Queue
 from threading import Thread
-import time
-import numpy as np
 import copy
 import os
-from shutil import copyfile
 
 from astra import Astra
 from error import InputError
@@ -109,32 +106,13 @@ class RewardCalculator:
             core, lists, changed, info = astra.change(points[0], points[1])
 
             if changed and info:
-                now = self.get_parameters(lists)
-                self.lists.setdefault(Thread.ident, []).append(now)
+                self.lists.setdefault(Thread.ident, []).append(lists)
                 self.cal_numb += 1
-                print(now)
+                print(lists)
 
             if changed and not info:
-                self.lists.setdefault(Thread.ident, []).append([0, 0, 0, 0, 0, 0])
+                self.lists.setdefault(Thread.ident, []).append((0, 0, 0, 0, 0, 0))
                 astra.reset()
 
             queue.task_done()
 
-    @staticmethod
-    def get_parameters(lists):
-
-        temp_list = []
-
-        for a_list in lists:
-            for values in a_list:
-                if len(values) > 0:
-                    temp_list.append(values[0:14])
-
-        a = np.array(temp_list, dtype=np.float64)
-
-        return (a.max(axis=0)[1],
-                a.max(axis=0)[3],
-                a.max(axis=0)[7],
-                a.max(axis=0)[8],
-                a.max(axis=0)[9],
-                a.max(axis=0)[10])

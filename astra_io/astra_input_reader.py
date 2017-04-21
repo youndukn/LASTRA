@@ -136,6 +136,9 @@ class AstraInputReader:
                 if type(astra_block_temp) == AstraShuffleBlock:
                     astra_block_temp.core.set_batches(astra_block.batches)
 
+        if type(astra_block) == AstraJobBlock:
+            self.input_string = self.replace_block([astra_block])
+
     @staticmethod
     def find_block(data, astra_block):
         """

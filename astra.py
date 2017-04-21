@@ -74,7 +74,7 @@ class Astra():
 
         return self.run_process_astra(shuffle_block)
 
-    def run_process_astra(self, shuffle_block = None):
+    def run_process_astra(self, shuffle_block=None):
 
         if not shuffle_block:
             shuffle_block = self.astra_input_reader.blocks[0]
@@ -86,19 +86,13 @@ class Astra():
             reading_out = AstraOutputReader(output_string=output_string)
             reading_out.parse_block_contents()
 
-            if len(reading_out.blocks[5].dictionary) > 0:
-                for key in reading_out.blocks[5].dictionary.keys():
-                    print(reading_out.blocks[5].dictionary[key])
-                return shuffle_block.core, 0.0, True, False
+            lists, successful = reading_out.process_astra()
+            if not successful:
+                return shuffle_block.core, None, True, successful
+            else:
+                return shuffle_block.core, lists, True, successful
 
-            if len(reading_out.blocks[6].dictionary) > 0:
-                for key in reading_out.blocks[6].dictionary.keys():
-                    print(reading_out.blocks[6].dictionary[key])
-                return shuffle_block.core, 0.0, True, False
-
-            return shuffle_block.core, reading_out.blocks[3].lists, True, True
-
-        return shuffle_block.core, 0.0, True, False
+        return shuffle_block.core, None, True, False
 
     def step(self, m_position1, position2):
         core, lists, changed, info = self.change(m_position1, position2)
@@ -106,7 +100,7 @@ class Astra():
 
     def run_astra(self, shuffle_block):
 
-        replaced = self.astra_input_reader.replace_block([shuffle_block, self.astra_input_reader.blocks[2]])
+        replaced = self.astra_input_reader.replace_block([shuffle_block])
 
         try:
             p = subprocess.Popen(['astra'],

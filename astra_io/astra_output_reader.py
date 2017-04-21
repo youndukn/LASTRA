@@ -2,7 +2,7 @@ import re
 
 from data.astra_output_block import AstraOutputBlock, AstraOutputCoreBlock, AstraOutputListBlock
 from error import InputError
-
+import numpy as np
 
 class AstraOutputReader:
     def __init__(self, output_name=None, output_string=None):
@@ -69,8 +69,8 @@ class AstraOutputReader:
                 if re.match("\s*-" + format(block.block_name) + r'(\s+|:)', block_content):
                     astra_block = block
                     break
-            # Separator String
 
+            # Separator String
             if len(astra_block.key_names) > 0:
 
                 key_name_string = r'('
@@ -145,3 +145,36 @@ class AstraOutputReader:
             raise InputError(block_name + "Not Found")
         return astra_block
 
+    def process_astra(self):
+
+        self.parse_block_contents()
+
+        if len(self.blocks[5].dictionary) > 0:
+            for key in self.blocks[5].dictionary.keys():
+                print(self.blocks[5].dictionary[key])
+            return 0.0, False
+
+        if len(self.blocks[6].dictionary) > 0:
+            for key in self.blocks[6].dictionary.keys():
+                print(self.blocks[6].dictionary[key])
+            return 0.0, False
+
+        return self.get_parameters([]), True
+
+    def get_parameters(self):
+
+        temp_list = []
+
+        for a_list in self.blocks[3].lists:
+            for values in a_list:
+                if len(values) > 0:
+                    temp_list.append(values[0:14])
+
+        a = np.array(temp_list, dtype=np.float64)
+
+        return (a.max(axis=0)[1],
+                a.max(axis=0)[3],
+                a.max(axis=0)[7],
+                a.max(axis=0)[8],
+                a.max(axis=0)[9],
+                a.max(axis=0)[10])
