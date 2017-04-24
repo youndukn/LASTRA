@@ -31,6 +31,7 @@ class Core:
             raise IndexError("Maximum row {}, : col {}".format(self.max_row, self.max_col))
         if not issubclass(type(assembly), Assembly):
             return False
+
         self.assemblies[row][col] = copy.deepcopy(assembly)
         return True
 
@@ -167,3 +168,4 @@ class Core:
             return 2
         else:
             return 3
+

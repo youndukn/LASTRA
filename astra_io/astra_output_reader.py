@@ -1,6 +1,7 @@
 import re
 
 from data.astra_output_block import AstraOutputBlock, AstraOutputCoreBlock, AstraOutputListBlock
+from data.core import Core
 from error import InputError
 import numpy as np
 
@@ -16,14 +17,20 @@ class AstraOutputReader:
 
         # output block to parse
         self.blocks = [
-            AstraOutputCoreBlock("P2DN", ["Y/X"]),
+            AstraOutputCoreBlock("B2DN", ["Y/X"]),
             AstraOutputCoreBlock("B2D", ["Y/X"]),
-            AstraOutputCoreBlock("PEAK", ["Y/X"]),
+            AstraOutputCoreBlock("GADM", ["Y/X"]),
             AstraOutputListBlock("SUMMARY", ["---"]),
             AstraOutputBlock("HAPPY"),
             AstraOutputBlock("ERROR"),
-            AstraOutputBlock("WARN")
+            AstraOutputBlock("WARN"),
+            AstraOutputListBlock("ENRC", ["---"]),
+            AstraOutputListBlock("CBAT", ["---"])
         ]
+        """AstraOutputListBlock("ENRC", ["CORE AVERAGE ENRICHMENT",
+                                             "SUB-BATCH ENRICHMENT",
+                                             "SUB-BATCH ENRICHMENT",
+                                             "SUB-BATCH AND AXIAL COMPOSITION ENRICHMENT"])"""
 
     def set_output_string(self, output_name=None, output_string=None):
         """
@@ -152,16 +159,27 @@ class AstraOutputReader:
         if len(self.blocks[5].dictionary) > 0:
             for key in self.blocks[5].dictionary.keys():
                 print(self.blocks[5].dictionary[key])
-            return 0.0, False
+            return None, None, False
 
         if len(self.blocks[6].dictionary) > 0:
             for key in self.blocks[6].dictionary.keys():
                 print(self.blocks[6].dictionary[key])
-            return 0.0, False
+            return None, None, False
 
-        return self.get_parameters([]), True
+        return self.get_input_parameters(), self.get_output_parameters(), True
 
-    def get_parameters(self):
+    def get_input_parameters(self):
+        list = self.blocks[8].lists[0]
+        input_core = self.blocks[0].cores[0]
+        for assemblies in input_core.assemblies:
+            for assembly in assemblies:
+                for values in list:
+                    if values[0] == assembly.get_batch():
+                        assembly.add_value(values[2])
+
+        return input_core
+
+    def get_output_parameters(self):
 
         temp_list = []
 

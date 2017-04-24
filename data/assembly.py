@@ -32,6 +32,7 @@ class Assembly:
 
 class WaterAssembly(Assembly):
     def __init__(self):
+        super(WaterAssembly, self).__init__()
         self.__type = "water"
 
     def print_assembly(self):
@@ -40,6 +41,7 @@ class WaterAssembly(Assembly):
 
 class FreshAssembly(Assembly):
     def __init__(self):
+        super(FreshAssembly, self).__init__()
         self.__name = "F"
         self.__batch = ""
         self.__number = -1
@@ -70,6 +72,7 @@ class FreshAssembly(Assembly):
 
 class ShuffleAssembly(Assembly):
     def __init__(self):
+        super(ShuffleAssembly, self).__init__()
         self.__rotation = -1
         self.__col = 'A'
         self.__row = -1

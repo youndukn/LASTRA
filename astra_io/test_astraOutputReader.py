@@ -13,5 +13,5 @@ class TestAstraOutputReader(TestCase):
         output_reader = AstraOutputReader("outfile.out")
         output_reader.parse_block_contents()
         print(output_reader.blocks[0].print_block())
-        print("block",output_reader.blocks[3].print_block())
+        print("block", output_reader.blocks[3].print_block())
         self.assertTrue(True)

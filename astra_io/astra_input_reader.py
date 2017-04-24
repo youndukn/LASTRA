@@ -135,9 +135,20 @@ class AstraInputReader:
             for astra_block_temp in self.blocks:
                 if type(astra_block_temp) == AstraShuffleBlock:
                     astra_block_temp.core.set_batches(astra_block.batches)
+            return
 
         if type(astra_block) == AstraJobBlock:
             self.input_string = self.replace_block([astra_block])
+            return
+
+    def process_node_burnup_core(self, core):
+
+        for i, assemblies in enumerate(self.blocks[0].core.assemblies):
+            for j, assembly in enumerate(assemblies):
+                values = core.assemblies[i][j].get_values()
+                for k in range(len(values)-1):
+                    assembly.add_value(values[k])
+
 
     @staticmethod
     def find_block(data, astra_block):

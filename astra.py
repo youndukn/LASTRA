@@ -86,7 +86,8 @@ class Astra():
             reading_out = AstraOutputReader(output_string=output_string)
             reading_out.parse_block_contents()
 
-            lists, successful = reading_out.process_astra()
+            core, lists, successful = reading_out.process_astra()
+
             if not successful:
                 return shuffle_block.core, None, True, successful
             else:
