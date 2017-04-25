@@ -27,10 +27,6 @@ class AstraOutputReader:
             AstraOutputListBlock("ENRC", ["---"]),
             AstraOutputListBlock("CBAT", ["---"])
         ]
-        """AstraOutputListBlock("ENRC", ["CORE AVERAGE ENRICHMENT",
-                                             "SUB-BATCH ENRICHMENT",
-                                             "SUB-BATCH ENRICHMENT",
-                                             "SUB-BATCH AND AXIAL COMPOSITION ENRICHMENT"])"""
 
     def set_output_string(self, output_name=None, output_string=None):
         """
@@ -173,9 +169,32 @@ class AstraOutputReader:
         input_core = self.blocks[0].cores[0]
         for assemblies in input_core.assemblies:
             for assembly in assemblies:
+                if 'B0' == assembly.get_batch():
+                    assembly.add_value(3.049)
+                if 'B1' == assembly.get_batch():
+                    assembly.add_value(2.899)
+                if 'B2' == assembly.get_batch():
+                    assembly.add_value(2.805)
+                if 'B3' == assembly.get_batch():
+                    assembly.add_value(2.883)
+                if 'C0' == assembly.get_batch():
+                    assembly.add_value(3.407)
+                if 'C1' == assembly.get_batch():
+                    assembly.add_value(3.338)
+                if 'C2' == assembly.get_batch():
+                    assembly.add_value(3.314)
+                if 'C3' == assembly.get_batch():
+                    assembly.add_value(3.220)
+                if 'D0' == assembly.get_batch():
+                    assembly.add_value(4.342)
+                if 'D1' == assembly.get_batch():
+                    assembly.add_value(4.238)
+                if 'D2' == assembly.get_batch():
+                    assembly.add_value(4.203)
+
                 for values in list:
                     if values[0] == assembly.get_batch():
-                        assembly.add_value(values[2])
+                        assembly.add_value(values[3])
 
         return input_core
 

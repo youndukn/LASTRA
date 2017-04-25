@@ -3,6 +3,7 @@ from queue import Queue
 from threading import Thread
 import copy
 import os
+import numpy as np
 
 from astra import Astra
 from error import InputError
@@ -18,27 +19,9 @@ class RewardCalculator:
         self.dev_p = (64.39, 22.8, 0.08, 0.004, 0.10, 0.088)
         self.cal_numb = 0
         self.max_numb =100
-        self.thread_numb = 2
+        self.thread_numb = 9
 
     def calculate_rate(self):
-
-        """
-        lists = 1
-        changed = False
-        info = False
-
-        while not (changed and info):
-            oct_move = astra.get_oct_move_action()
-            second_move = None
-            if oct_move % astra.n_move == astra.shuffle:
-                second_move = astra.get_oct_shuffle_space(oct_move)
-
-            core, lists, changed, info = astra.change(oct_move, second_move)
-            if changed and not info:
-                astra.reset()
-
-        pre = self.get_parameters(lists)
-        """
 
         astra = Astra(self.__astra_input_reader)
 
@@ -80,9 +63,15 @@ class RewardCalculator:
         enclosure_queue.join()
         print('*** Done')
 
+        saving = []
         for key in self.lists:
+            saving.append(key)
+            saving.append([0, 0, 0, 0, 0, 0])
             for values in self.lists[key]:
+                saving.append(list(values))
                 print(values)
+        saving_array = np.array(saving)
+        np.save('saved.npy', saving_array)
 
         for value in self.dev:
             print(value)
@@ -90,10 +79,7 @@ class RewardCalculator:
 
     def update_dev(self, astra, queue):
         while True:
-            if self.cal_numb > self.max_numb:
-                # Task is done
-                queue.task_done()
-            else:
+            if self.cal_numb < self.max_numb:
                 # Create another queue
                 oct_move = astra.get_oct_move_action()
                 second_move = astra.get_oct_shuffle_space(

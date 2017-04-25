@@ -14,7 +14,6 @@ def main():
 
     reading = AstraInputReader("01_s3c02p_nep_depl.job")
 
-    # SHUFFLE
     for astra_block in reading.blocks:
         reading.parse_block_content(astra_block.block_name)
 
