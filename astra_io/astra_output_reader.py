@@ -155,11 +155,13 @@ class AstraOutputReader:
         if len(self.blocks[5].dictionary) > 0:
             for key in self.blocks[5].dictionary.keys():
                 print(self.blocks[5].dictionary[key])
+                break
             return None, None, False
 
         if len(self.blocks[6].dictionary) > 0:
             for key in self.blocks[6].dictionary.keys():
                 print(self.blocks[6].dictionary[key])
+                break
             return None, None, False
 
         return self.get_input_parameters(), self.get_output_parameters(), True

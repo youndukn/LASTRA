@@ -19,7 +19,7 @@ class RewardCalculator:
         self.dev_p = (64.39, 22.8, 0.08, 0.004, 0.10, 0.088)
         self.cal_numb = 0
         self.max_numb =100
-        self.thread_numb = 9
+        self.thread_numb = 2
 
     def calculate_rate(self):
 
@@ -93,6 +93,7 @@ class RewardCalculator:
 
             if changed and info:
                 self.lists.setdefault(Thread.ident, []).append(lists)
+                astra.change_data.append(lists)
                 self.cal_numb += 1
                 print(lists)
 

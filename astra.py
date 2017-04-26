@@ -4,6 +4,7 @@ from random import randint
 import subprocess
 import copy
 import os
+import numpy as np
 
 from astra_io.astra_output_reader import AstraOutputReader
 
@@ -30,6 +31,7 @@ class Astra():
         self.absolute_reward = 0
         self.original_reward = 0
         self.working_directory = ".{}".format(os.path.sep)
+        self.change_data = []
 
     def make(self):
         output_string = self.run_astra(self.astra_input_reader.blocks[0])
@@ -45,6 +47,11 @@ class Astra():
     def reset(self):
         self.astra_input_reader.blocks[0].core = copy.deepcopy(self.original_core)
         self.absolute_reward = self.original_reward
+
+        for values in self.change_data:
+            print("Hello {}".format((values,)))
+        self.change_data = []
+
         return
 
     def change(self,  m_position1, position2):
