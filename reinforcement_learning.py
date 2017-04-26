@@ -1,6 +1,11 @@
 from astra import Astra
 import numpy as np
 
+class ReinforcementLearning():
+    def __init__(self, input_data_name, output_data_name):
+        self.output_array = np.load(input_data_name)
+        self.input_matrix = np.load(output_data_name)
+
 LR = 1e-3
 goal_steps = 200
 initial_games = 10000
