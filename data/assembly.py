@@ -3,7 +3,7 @@ from error import InputError
 
 class Assembly:
     def __init__(self):
-        self.__batch = None
+        self.__batch = ""
         self.__values = []
 
     def copy(self, assembly):
@@ -16,6 +16,9 @@ class Assembly:
 
     def add_value(self, value):
         self.__values.append(value)
+
+    def remove_all_values(self):
+        self.__values.clear()
 
     def get_batch(self):
         return self.__batch

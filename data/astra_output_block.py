@@ -2,7 +2,7 @@ import re
 
 from data.astra_block import AstraBlock
 from data.core import Core
-
+import copy
 
 class AstraOutputBlock(AstraBlock):
     def __init__(self, block_name=None, key_names=None):
@@ -90,6 +90,37 @@ class AstraOutputCoreBlock(AstraOutputBlock):
                     string += "\n"
         return string
 
+
+class AstraOutputNodeCoreBlock(AstraOutputCoreBlock):
+    def __init__(self, block_name=None, key_names=None):
+        super(AstraOutputNodeCoreBlock, self).__init__(block_name, key_names)
+
+    def finalize(self):
+        super().finalize()
+        for core in self.cores:
+            assembly = core.assemblies[0][0]
+            if len(assembly.get_values()) == 1:
+                value = assembly.get_values()[0]
+                for x in range(3):
+                    assembly.add_value(value)
+
+            for i, assembly in enumerate(core.assemblies[0]):
+                if i > 0:
+                    first_values = copy.copy(assembly.get_values())
+                    second_values = copy.copy(core.assemblies[i][0].get_values())
+                    if len(first_values) == 2:
+                        assembly.remove_all_values()
+                        core.assemblies[i][0].remove_all_values()
+
+                        assembly.add_value(copy.copy(second_values[0]))
+                        assembly.add_value(copy.copy(second_values[1]))
+                        assembly.add_value(copy.copy(first_values[0]))
+                        assembly.add_value(copy.copy(first_values[1]))
+
+                        core.assemblies[i][0].add_value(copy.copy(first_values[0]))
+                        core.assemblies[i][0].add_value(copy.copy(second_values[0]))
+                        core.assemblies[i][0].add_value(copy.copy(first_values[1]))
+                        core.assemblies[i][0].add_value(copy.copy(second_values[1]))
 
 class AstraOutputListBlock(AstraOutputBlock):
     def __init__(self, block_name=None, key_names=None):

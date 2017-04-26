@@ -7,7 +7,7 @@ import re
 
 from data.astra_block import AstraBatchBlock, AstraShuffleBlock, AstraJobBlock
 from error import InputError
-
+import copy
 
 class AstraInputReader:
 
@@ -145,9 +145,11 @@ class AstraInputReader:
 
         for i, assemblies in enumerate(self.blocks[0].core.assemblies):
             for j, assembly in enumerate(assemblies):
+                batch = core.assemblies[i][j].get_batch()
                 values = core.assemblies[i][j].get_values()
-                for k in range(len(values)-1):
-                    assembly.add_value(values[k])
+                for value in values:
+                    assembly.add_value(copy.copy(value))
+                    #assembly.set_batch(batch)
 
 
     @staticmethod

@@ -47,9 +47,6 @@ class Astra():
     def reset(self):
         self.astra_input_reader.blocks[0].core = copy.deepcopy(self.original_core)
         self.absolute_reward = self.original_reward
-
-        for values in self.change_data:
-            print("Hello {}".format((values,)))
         self.change_data = []
 
         return
@@ -96,11 +93,11 @@ class Astra():
             core, lists, successful = reading_out.process_astra()
 
             if not successful:
-                return shuffle_block.core, None, True, successful
+                return core, None, True, successful
             else:
-                return shuffle_block.core, lists, True, successful
+                return core, lists, True, successful
 
-        return shuffle_block.core, None, True, False
+        return None, None, True, False
 
     def step(self, m_position1, position2):
         core, lists, changed, info = self.change(m_position1, position2)

@@ -149,10 +149,20 @@ class Core:
 
         return True
 
+    def get_value_matrix(self, index):
+        a_matrix = []
+        for row_assemblies in self.assemblies:
+            a_array = []
+            for assembly in row_assemblies:
+                a_array.append(assembly.get_values()[index])
+            a_matrix.append(a_array)
+
+
     def __swap_assemblies(self, position1, position2):
         assembly_temp = self.assemblies[position1[0]][position1[1]]
         self.assemblies[position1[0]][position1[1]] = self.assemblies[position2[0]][position2[1]]
         self.assemblies[position2[0]][position2[1]] = assembly_temp
+
 
     @staticmethod
     def sym(position):

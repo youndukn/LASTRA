@@ -1,6 +1,6 @@
 import re
 
-from data.astra_output_block import AstraOutputBlock, AstraOutputCoreBlock, AstraOutputListBlock
+from data.astra_output_block import AstraOutputBlock, AstraOutputCoreBlock, AstraOutputListBlock, AstraOutputNodeCoreBlock
 from data.core import Core
 from error import InputError
 import numpy as np
@@ -17,7 +17,7 @@ class AstraOutputReader:
 
         # output block to parse
         self.blocks = [
-            AstraOutputCoreBlock("B2DN", ["Y/X"]),
+            AstraOutputNodeCoreBlock("B2DN", ["Y/X"]),
             AstraOutputCoreBlock("B2D", ["Y/X"]),
             AstraOutputCoreBlock("GADM", ["Y/X"]),
             AstraOutputListBlock("SUMMARY", ["---"]),
@@ -211,9 +211,9 @@ class AstraOutputReader:
 
         a = np.array(temp_list, dtype=np.float64)
 
-        return (a.max(axis=0)[1],
+        return [a.max(axis=0)[1],
                 a.max(axis=0)[3],
                 a.max(axis=0)[7],
                 a.max(axis=0)[8],
                 a.max(axis=0)[9],
-                a.max(axis=0)[10])
+                a.max(axis=0)[10]]

@@ -19,7 +19,7 @@ class RewardCalculator:
         self.dev_p = (64.39, 22.8, 0.08, 0.004, 0.10, 0.088)
         self.cal_numb = 0
         self.max_numb =100
-        self.thread_numb = 2
+        self.thread_numb = 12
 
     def calculate_rate(self):
 
@@ -53,6 +53,7 @@ class RewardCalculator:
             new_astra.working_directory = directory
 
             # Create threads according to the thread number
+            self.lists.setdefault(new_astra.working_directory, [[0, 0, 0, 0, 0, 0]])
             worker = Thread(target=self.update_dev, args=(new_astra, enclosure_queue, ))
             worker.setDaemon(True)
             worker.start()
@@ -63,15 +64,26 @@ class RewardCalculator:
         enclosure_queue.join()
         print('*** Done')
 
-        saving = []
+        core_matrix = []
+        output_array = []
+
         for key in self.lists:
-            saving.append(key)
-            saving.append([0, 0, 0, 0, 0, 0])
-            for values in self.lists[key]:
-                saving.append(list(values))
-                print(values)
-        saving_array = np.array(saving)
-        np.save('saved.npy', saving_array)
+            for core_outs in self.lists[key]:
+                core = core_outs[0]
+                out = core_outs[1]
+                core_array =[]
+                for i in range(6):
+                    core_array.append(core.get_value_matrix(i))
+                core_matrix.append(core_array)
+                output_array.append(out)
+
+        output_np = np.array(output_array)
+        core_np = np.array(output_array)
+
+        print(output_np)
+        print(core_np)
+        np.save('output.npy', output_np)
+        np.save('core.npy', core_np)
 
         for value in self.dev:
             print(value)
@@ -92,13 +104,19 @@ class RewardCalculator:
             core, lists, changed, info = astra.change(points[0], points[1])
 
             if changed and info:
-                self.lists.setdefault(Thread.ident, []).append(lists)
+                self.lists[astra.working_directory].append([core, lists])
                 astra.change_data.append(lists)
                 self.cal_numb += 1
+                print(astra.working_directory)
+                for x in core.assemblies:
+                    a_string = ""
+                    for y in x:
+                        a_string += y.get_batch()+" "
+                    print(a_string)
                 print(lists)
 
             if changed and not info:
-                self.lists.setdefault(Thread.ident, []).append((0, 0, 0, 0, 0, 0))
+                self.lists[astra.working_directory].append([core, [0, 0, 0, 0, 0, 0]])
                 astra.reset()
 
             queue.task_done()
