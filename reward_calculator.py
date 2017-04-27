@@ -19,7 +19,7 @@ class RewardCalculator:
         self.dev = [0, 0, 0, 0, 0, 0]
         self.dev_p = (64.39, 22.8, 0.08, 0.004, 0.10, 0.088)
         self.cal_numb = 0
-        self.max_numb = 40
+        self.max_numb = 100
         self.thread_numb = 12
 
     def calculate_rate(self):
@@ -54,7 +54,6 @@ class RewardCalculator:
             new_astra.working_directory = directory
 
             # Create threads according to the thread number
-            self.lists.setdefault(new_astra.working_directory, [[0, 0, 0, 0, 0, 0]])
             worker = Thread(target=self.update_dev, args=(new_astra, enclosure_queue, ))
             worker.setDaemon(True)
             worker.start()
