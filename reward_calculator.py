@@ -11,16 +11,16 @@ from error import InputError
 from data.astra_train_set import AstraTrainSet
 
 class RewardCalculator:
-    def __init__(self, astra_input_reader):
+    def __init__(self, thread_numb, astra_input_reader):
         self.__astra_input_reader = astra_input_reader
         self.numb = 6
         self.max = (100000, 3000, 3, 3, 3, 3)
-        self.lists = {}
+        self.lists = []
         self.dev = [0, 0, 0, 0, 0, 0]
         self.dev_p = (64.39, 22.8, 0.08, 0.004, 0.10, 0.088)
         self.cal_numb = 0
         self.max_numb = 100
-        self.thread_numb = 12
+        self.thread_numb = thread_numb
 
     def calculate_rate(self):
 
@@ -54,7 +54,6 @@ class RewardCalculator:
             new_astra.working_directory = directory
 
             # Create threads according to the thread number
-            self.lists.setdefault(new_astra.working_directory, [])
             worker = Thread(target=self.update_dev, args=(new_astra, enclosure_queue, ))
             worker.setDaemon(True)
             worker.start()
@@ -65,14 +64,8 @@ class RewardCalculator:
         enclosure_queue.join()
         print('*** Done')
 
-        output = []
-
-        for key in self.lists:
-            for astra_set in self.lists[key]:
-                output.append(astra_set)
-
         with open('random_data.pkl', 'wb') as output_file:
-            pickle.dump(output, output_file, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.lists, output_file, pickle.HIGHEST_PROTOCOL)
 
         for value in self.dev:
             print(value)
@@ -96,7 +89,7 @@ class RewardCalculator:
             if changed and info:
                 astra.change_data.append(AstraTrainSet(core, points, lists))
                 if len(astra.change_data) > 20:
-                    self.lists[astra.working_directory].append(astra.change_data)
+                    self.lists.append(astra.change_data)
                     astra.reset()
                 self.cal_numb += 1
                 print(astra.working_directory)
@@ -111,7 +104,7 @@ class RewardCalculator:
 
             if changed and not info:
                 astra.change_data.append(AstraTrainSet(core, points, [0, 0, 0, 0, 0, 0]))
-                self.lists[astra.working_directory].append(astra.change_data)
+                self.lists.append(astra.change_data)
                 astra.reset()
 
             queue.task_done()

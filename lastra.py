@@ -1,12 +1,10 @@
 import argparse
-import sys
-import pickle
 
 from astra_io.astra_input_reader import AstraInputReader
 from reward_calculator import RewardCalculator
 from astra_io.astra_output_reader import AstraOutputReader
 from astra import Astra
-
+from reinforcement_learning import ReinforcementLearning
 
 def main():
     parser = argparse.ArgumentParser()
@@ -33,8 +31,11 @@ def main():
     core = reading_out.get_input_parameters()
     reading.process_node_burnup_core(core)
 
-    cal = RewardCalculator(reading)
+    cal = RewardCalculator(12, reading)
     cal.calculate_rate()
+
+    learning = ReinforcementLearning(12, reading, None, None)
+
 
     print(args.x)
 

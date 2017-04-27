@@ -1,18 +1,108 @@
 from astra import Astra
 import numpy as np
+from queue import Queue
+import copy
+import os
+from threading import Thread
+
+from data.astra_train_set import AstraTrainSet
+
 
 class ReinforcementLearning():
 
-    LR = 1e-3
+    learning_rate = 1e-3
     goal_steps = 200
     initial_games = 10000
     score_requirement = 0
 
-    def __init__(self, input_data_name, output_data_name):
+    def __init__(self, thread_numb, input_reader, input_data_name=None, output_data_name=None):
+        self.input_reader = input_reader
         self.output_array = np.load(input_data_name)
         self.input_matrix = np.load(output_data_name)
+        self.thread_numb = thread_numb
+
+        self.cal_numb = 0
 
     def initial_population(self):
+        astra = Astra(self.input_reader)
+
+        # Set up some global variables
+        num_fetch_threads = self.thread_numb
+        enclosure_queue = Queue()
+
+        out_queue = Queue()
+
+        # Create
+        for i in range(num_fetch_threads):
+
+            # Create queues according to the thread number
+            oct_move = astra.get_oct_move_action()
+            second_move = astra.get_oct_shuffle_space(oct_move) if oct_move%Astra.n_move == astra.shuffle else None
+            enclosure_queue.put([oct_move, second_move])
+
+            # Create astra according to the thread number
+            new_astra = copy.deepcopy(astra)
+
+            directory = ".{}{}".format(os.path.sep, i)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
+            new_astra.working_directory = directory
+
+            # Create threads according to the thread number
+            worker = Thread(target=self.update_dev, args=(new_astra, enclosure_queue, out_queue, ))
+            worker.setDaemon(True)
+            worker.start()
+
+        worker = Thread(target=self.learn, args=(out_queue, ))
+        worker.setDaemon(True)
+        worker.start()
+
+        # Now wait for the queue to be empty, indicating that we have
+        # processed all of the downloads.)
+        print('*** Main thread waiting')
+        enclosure_queue.join()
+        print('*** Done')
+
+    def update_dev(self, astra, queue, out_queue):
+        while True:
+            if self.cal_numb < ReinforcementLearning.initial_games:
+                # Create another queue
+                oct_move = astra.get_oct_move_action()
+                second_move = astra.get_oct_shuffle_space(
+                    oct_move) if oct_move % Astra.n_move == astra.shuffle else None
+                queue.put([oct_move, second_move])
+
+            points = queue.get()
+
+            # Run astra to get lists
+            core, lists, changed, info = astra.change(points[0], points[1])
+
+            if changed and info:
+                astra.change_data.append(AstraTrainSet(core, points, lists))
+                if len(astra.change_data) > 100:
+                    out_queue.put(astra.change_data)
+                    astra.reset()
+                self.cal_numb += 1
+                print(astra.working_directory)
+                """
+                for x in core.assemblies:
+                    a_string = ""
+                    for y in x:
+                        a_string += y.get_batch()+" "
+                    print(a_string)
+                """
+                print(lists)
+
+            if changed and not info:
+                astra.change_data.append(AstraTrainSet(core, points, [0, 0, 0, 0, 0, 0]))
+                out_queue.put(astra.change_data)
+                astra.reset()
+
+            queue.task_done()
+
+
+        """
         env = Astra()
         training_data = []
         scores = []
@@ -45,9 +135,4 @@ class ReinforcementLearning():
             scores.append(score)
         training_data_save = np.array(training_data)
         np.save('saved.npy', training_data_save)
-
-
-
-
-
-initial_population()
+"""
