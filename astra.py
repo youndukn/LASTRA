@@ -9,19 +9,24 @@ import numpy as np
 from astra_io.astra_output_reader import AstraOutputReader
 
 class Astra():
+
+    n_move = 10
+
+    shuffle = 0
+    rotate1 = 1
+    rotate2 = 2
+    rotate3 = 3
+    bp_in = 4
+    bp_de = 5
+    bp_co_in = 6
+    bp_co_in = 7
+    co_in = 8
+    co_de = 9
+
     def __init__(self, astra_input_reader):
 
         self.astra_input_reader = astra_input_reader
         self.original_core = copy.deepcopy(self.astra_input_reader.blocks[0].core)
-        print(self.astra_input_reader.blocks[0].print_block())
-        self.n_move = 6
-
-        self.shuffle = 0
-        self.rotate1 = 1
-        self.rotate2 = 2
-        self.rotate3 = 3
-        self.bp_in = 4
-        self.bp_de = 5
 
         self.max_row = 10
         self.max_col = 10
@@ -52,24 +57,24 @@ class Astra():
         return
 
     def change(self,  m_position1, position2):
-        position1 = int(m_position1 / self.n_move)
+        position1 = int(m_position1 / Astra.n_move)
 
         shuffle_block = self.astra_input_reader.blocks[0]
         changed = False
-        if m_position1 % self.n_move == self.shuffle and position2:
+        if m_position1 % Astra.n_move == Astra.shuffle and position2:
             changed = shuffle_block.core.shuffle(self.position[position1], self.position[position2])
-        elif m_position1 % self.n_move == self.rotate1:
+        elif m_position1 % Astra.n_move == Astra.rotate1:
             changed = shuffle_block.core.rotate(self.position[position1])
-        elif m_position1 % self.n_move == self.rotate2:
+        elif m_position1 % Astra.n_move == Astra.rotate2:
             shuffle_block.core.rotate(self.position[position1])
             changed = shuffle_block.core.rotate(self.position[position1])
-        elif m_position1 % self.n_move == self.rotate3:
+        elif m_position1 % Astra.n_move == Astra.rotate3:
             shuffle_block.core.rotate(self.position[position1])
             shuffle_block.core.rotate(self.position[position1])
             changed = shuffle_block.core.rotate(self.position[position1])
-        elif m_position1 % self.n_move == self.bp_in:
+        elif m_position1 % Astra.n_move == Astra.bp_in:
             changed = shuffle_block.core.poison(self.position[position1], True)
-        elif m_position1 % self.n_move == self.bp_de:
+        elif m_position1 % Astra.n_move == Astra.bp_de:
             changed = shuffle_block.core.poison(self.position[position1], False)
         self.astra_input_reader.blocks[0] = shuffle_block
 

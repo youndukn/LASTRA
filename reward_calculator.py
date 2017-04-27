@@ -4,10 +4,11 @@ from threading import Thread
 import copy
 import os
 import numpy as np
+import pickle
 
 from astra import Astra
 from error import InputError
-
+from data.astra_train_set import AstraTrainSet
 
 class RewardCalculator:
     def __init__(self, astra_input_reader):
@@ -18,7 +19,7 @@ class RewardCalculator:
         self.dev = [0, 0, 0, 0, 0, 0]
         self.dev_p = (64.39, 22.8, 0.08, 0.004, 0.10, 0.088)
         self.cal_numb = 0
-        self.max_numb =100
+        self.max_numb = 40
         self.thread_numb = 12
 
     def calculate_rate(self):
@@ -40,7 +41,7 @@ class RewardCalculator:
 
             # Create queues according to the thread number
             oct_move = astra.get_oct_move_action()
-            second_move = astra.get_oct_shuffle_space(oct_move) if oct_move%astra.n_move == astra.shuffle else None
+            second_move = astra.get_oct_shuffle_space(oct_move) if oct_move%Astra.n_move == astra.shuffle else None
             enclosure_queue.put([oct_move, second_move])
 
             # Create astra according to the thread number
@@ -64,29 +65,18 @@ class RewardCalculator:
         enclosure_queue.join()
         print('*** Done')
 
-        core_matrix = []
-        output_array = []
+        output = []
 
         for key in self.lists:
-            for core_outs in self.lists[key]:
-                core = core_outs[0]
-                out = core_outs[1]
-                core_array =[]
-                for i in range(6):
-                    core_array.append(core.get_value_matrix(i))
-                core_matrix.append(core_array)
-                output_array.append(out)
+            for astra_set in self.lists[key]:
+                output.append(astra_set)
 
-        output_np = np.array(output_array)
-        core_np = np.array(output_array)
-
-        print(output_np)
-        print(core_np)
-        np.save('output.npy', output_np)
-        np.save('core.npy', core_np)
+        with open('random_data.pkl', 'wb') as output_file:
+            pickle.dump(output, output_file, pickle.HIGHEST_PROTOCOL)
 
         for value in self.dev:
             print(value)
+
         return self.dev
 
     def update_dev(self, astra, queue):
@@ -95,7 +85,7 @@ class RewardCalculator:
                 # Create another queue
                 oct_move = astra.get_oct_move_action()
                 second_move = astra.get_oct_shuffle_space(
-                    oct_move) if oct_move % astra.n_move == astra.shuffle else None
+                    oct_move) if oct_move % Astra.n_move == astra.shuffle else None
                 queue.put([oct_move, second_move])
 
             points = queue.get()
@@ -104,20 +94,24 @@ class RewardCalculator:
             core, lists, changed, info = astra.change(points[0], points[1])
 
             if changed and info:
-                self.lists[astra.working_directory].append([core, lists])
-                astra.change_data.append(lists)
+                astra.change_data.append(AstraTrainSet(core, points, lists))
+                if len(astra.change_data) > 20:
+                    self.lists[astra.working_directory].append(astra.change_data)
+                    astra.reset()
                 self.cal_numb += 1
                 print(astra.working_directory)
+                """
                 for x in core.assemblies:
                     a_string = ""
                     for y in x:
                         a_string += y.get_batch()+" "
                     print(a_string)
+                """
                 print(lists)
 
             if changed and not info:
-                self.lists[astra.working_directory].append([core, [0, 0, 0, 0, 0, 0]])
+                astra.change_data.append(AstraTrainSet(core, points, [0, 0, 0, 0, 0, 0]))
+                self.lists[astra.working_directory].append(astra.change_data)
                 astra.reset()
 
             queue.task_done()
-

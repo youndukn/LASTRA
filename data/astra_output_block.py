@@ -57,7 +57,7 @@ class AstraOutputCoreBlock(AstraOutputBlock):
                 # Start value is row number so 1
                 row += 1
                 col_len = length - 1
-                for col in range(1, length - 1):
+                for col in range(1, length):
                     core.assemblies[row][col - 1].set_batch(splitted[col])
             elif length == col_len * 2:
                 # True node wise
