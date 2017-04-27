@@ -54,6 +54,7 @@ class RewardCalculator:
             new_astra.working_directory = directory
 
             # Create threads according to the thread number
+            self.lists.setdefault(new_astra.working_directory, [])
             worker = Thread(target=self.update_dev, args=(new_astra, enclosure_queue, ))
             worker.setDaemon(True)
             worker.start()
