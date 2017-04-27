@@ -11,6 +11,7 @@ def main():
     parser.add_argument('--x', type=float, default=0.0, help='helper')
     args = parser.parse_args()
 
+    print("Reference Calculation")
     reading = AstraInputReader("01_s3c02p_nep_depl.job")
 
     for astra_block in reading.blocks:
@@ -19,6 +20,7 @@ def main():
     astra = Astra(reading)
 
     astra.reset()
+
 
     output_string = astra.run_astra(reading.blocks[0])
 
@@ -31,11 +33,13 @@ def main():
     core = reading_out.get_input_parameters()
     reading.process_node_burnup_core(core)
 
-    cal = RewardCalculator(12, reading)
-    cal.calculate_rate()
+    thread_number = 12
 
-    learning = ReinforcementLearning(12, reading, None, None)
+    #cal = RewardCalculator(thread_number, reading)
+    #cal.calculate_rate()
 
+    print("Reinforcement Start")
+    learning = ReinforcementLearning(thread_number, reading, None, None)
 
     print(args.x)
 

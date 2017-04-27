@@ -6,6 +6,7 @@ import os
 from threading import Thread
 
 from data.astra_train_set import AstraTrainSet
+import time
 
 
 class ReinforcementLearning():
@@ -17,13 +18,20 @@ class ReinforcementLearning():
 
     def __init__(self, thread_numb, input_reader, input_data_name=None, output_data_name=None):
         self.input_reader = input_reader
-        self.output_array = np.load(input_data_name)
-        self.input_matrix = np.load(output_data_name)
         self.thread_numb = thread_numb
 
+        if input_data_name:
+            self.output_array = np.load(input_data_name)
+
+        if output_data_name:
+            self.input_matrix = np.load(output_data_name)
+
         self.cal_numb = 0
+        self.initial_population()
+
 
     def initial_population(self):
+        print("start")
         astra = Astra(self.input_reader)
 
         # Set up some global variables
@@ -54,7 +62,7 @@ class ReinforcementLearning():
             worker.setDaemon(True)
             worker.start()
 
-        worker = Thread(target=self.learn, args=(out_queue, ))
+        worker = Thread(target=self.learning, args=(enclosure_queue, out_queue, ))
         worker.setDaemon(True)
         worker.start()
 
@@ -100,6 +108,17 @@ class ReinforcementLearning():
                 astra.reset()
 
             queue.task_done()
+
+    def learning(self, queue, out_queue):
+
+        while not queue.empty():
+            if out_queue.empty():
+                print("waiting..")
+                time.sleep(5)
+            else:
+                print("Start")
+                time.sleep(5)
+
 
 
         """
