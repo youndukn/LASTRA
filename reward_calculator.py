@@ -11,8 +11,8 @@ from error import InputError
 from data.astra_train_set import AstraTrainSet
 
 class RewardCalculator:
-    def __init__(self, thread_numb, astra_input_reader):
-        self.__astra_input_reader = astra_input_reader
+    def __init__(self, thread_numb, astra):
+        self.__astra_input_reader = astra.astra_input_reader
         self.numb = 6
         self.max = (100000, 3000, 3, 3, 3, 3)
         self.lists = []
@@ -92,7 +92,7 @@ class RewardCalculator:
                     self.lists.append(astra.change_data)
                     astra.reset()
                 self.cal_numb += 1
-                print(astra.working_directory)
+                #print(astra.working_directory)
                 """
                 for x in core.assemblies:
                     a_string = ""

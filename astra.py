@@ -4,8 +4,8 @@ from random import randint
 import subprocess
 import copy
 import os
-import numpy as np
-
+from data.astra_train_set import AstraTrainSet
+from astra_io.astra_input_reader import AstraInputReader
 from astra_io.astra_output_reader import AstraOutputReader
 
 class Astra():
@@ -25,41 +25,46 @@ class Astra():
 
     def __init__(self, astra_input_reader):
 
+        #Astra Input Reader
         self.astra_input_reader = astra_input_reader
-        self.original_core = copy.deepcopy(self.astra_input_reader.blocks[0].core)
 
-        self.max_row = 10
-        self.max_col = 10
-        self.position = []
-        self.set_oct_position()
+        #Core information
+        self.original_core = copy.deepcopy(self.astra_input_reader.blocks[AstraInputReader.shuff_block].core)
+        self.max_row = self.original_core.max_row
+        self.max_col = self.original_core.max_col
+
         self.max_position = self.max_row * (self.max_col - 1) / 2 + self.max_row
+
+        self.position = self.set_oct_position()
+
         self.absolute_reward = 0
         self.original_reward = 0
         self.working_directory = ".{}".format(os.path.sep)
-        self.change_data = []
+
+        self.train_set = AstraTrainSet(None, None, None)
+        self.change_data = [self.train_set]
 
     def make(self):
-        output_string = self.run_astra(self.astra_input_reader.blocks[0])
+        output_string = self.run_astra(self.astra_input_reader.blocks[AstraInputReader.shuff_block])
         if output_string:
             reading_out = AstraOutputReader(output_string=output_string)
             reading_out.parse_block_contents()
-            self.calculate_reward(reading_out.blocks[3].lists())
+            self.calculate_reward(reading_out.blocks[AstraInputReader.job_block].lists())
             self.original_reward = self.absolute_reward
             return True
         else:
             return False
 
     def reset(self):
-        self.astra_input_reader.blocks[0].core = copy.deepcopy(self.original_core)
+        self.astra_input_reader.blocks[AstraInputReader.shuff_block].core = copy.deepcopy(self.original_core)
         self.absolute_reward = self.original_reward
-        self.change_data = []
-
+        self.change_data = [self.train_set]
         return
 
     def change(self,  m_position1, position2):
         position1 = int(m_position1 / Astra.n_move)
 
-        shuffle_block = self.astra_input_reader.blocks[0]
+        shuffle_block = self.astra_input_reader.blocks[AstraInputReader.shuff_block]
         changed = False
         if m_position1 % Astra.n_move == Astra.shuffle and position2:
             changed = shuffle_block.core.shuffle(self.position[position1], self.position[position2])
@@ -76,7 +81,7 @@ class Astra():
             changed = shuffle_block.core.poison(self.position[position1], True)
         elif m_position1 % Astra.n_move == Astra.bp_de:
             changed = shuffle_block.core.poison(self.position[position1], False)
-        self.astra_input_reader.blocks[0] = shuffle_block
+        self.astra_input_reader.blocks[AstraInputReader.shuff_block] = shuffle_block
 
         if not changed:
             return shuffle_block.core, 0.0, changed, False
@@ -86,7 +91,7 @@ class Astra():
     def run_process_astra(self, shuffle_block=None):
 
         if not shuffle_block:
-            shuffle_block = self.astra_input_reader.blocks[0]
+            shuffle_block = self.astra_input_reader.blocks[AstraInputReader.shuff_block]
 
         output_string = self.run_astra(shuffle_block)
 
@@ -147,9 +152,11 @@ class Astra():
         return randint(0, self.max_position-1)
 
     def set_oct_position(self):
+        position = []
         for row in range(self.max_col):
             for col in range(row, self.max_col):
-                self.position.append([row, col])
+                position.append([row, col])
+        return position
 
     def calculate_reward(self, lists):
         burnup = 0

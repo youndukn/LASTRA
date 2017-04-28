@@ -6,6 +6,18 @@ from error import InputError
 import numpy as np
 
 class AstraOutputReader:
+
+    b2dn_block = 0
+    b2d_block = 1
+    gadm_block = 2
+    sum_block = 3
+    happy_block = 4
+    error_block = 5
+    warn_block = 6
+    enrc_block =7
+    cbat_block = 8
+
+
     def __init__(self, output_name=None, output_string=None):
         """
         Define all blocks to be used in blocks
@@ -152,23 +164,23 @@ class AstraOutputReader:
 
         self.parse_block_contents()
 
-        if len(self.blocks[5].dictionary) > 0:
-            for key in self.blocks[5].dictionary.keys():
-                print(self.blocks[5].dictionary[key])
+        if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:
+            for key in self.blocks[AstraOutputReader.error_block].dictionary.keys():
+                print(self.blocks[AstraOutputReader.error_block].dictionary[key])
                 break
             return None, None, False
 
-        if len(self.blocks[6].dictionary) > 0:
-            for key in self.blocks[6].dictionary.keys():
-                print(self.blocks[6].dictionary[key])
+        if len(self.blocks[AstraOutputReader.warn_block].dictionary) > 0:
+            for key in self.blocks[AstraOutputReader.warn_block].dictionary.keys():
+                print(self.blocks[AstraOutputReader.warn_block].dictionary[key])
                 break
             return None, None, False
 
         return self.get_input_parameters(), self.get_output_parameters(), True
 
     def get_input_parameters(self):
-        list = self.blocks[8].lists[0]
-        input_core = self.blocks[0].cores[0]
+        a_list = self.blocks[AstraOutputReader.cbat_block].lists[0]
+        input_core = self.blocks[AstraOutputReader.b2dn_block].cores[0]
         for assemblies in input_core.assemblies:
             for assembly in assemblies:
                 if 'B0' == assembly.get_batch():
@@ -194,7 +206,7 @@ class AstraOutputReader:
                 if 'D2' == assembly.get_batch():
                     assembly.add_value(4.203)
 
-                for values in list:
+                for values in a_list:
                     if values[0] == assembly.get_batch():
                         assembly.add_value(values[3])
 
@@ -204,7 +216,7 @@ class AstraOutputReader:
 
         temp_list = []
 
-        for a_list in self.blocks[3].lists:
+        for a_list in self.blocks[AstraOutputReader.sum_block].lists:
             for values in a_list:
                 if len(values) > 0:
                     temp_list.append(values[0:14])

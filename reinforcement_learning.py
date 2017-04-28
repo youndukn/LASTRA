@@ -10,15 +10,16 @@ import time
 
 
 class ReinforcementLearning():
-
     learning_rate = 1e-3
     goal_steps = 200
     initial_games = 10000
     score_requirement = 0
 
-    def __init__(self, thread_numb, input_reader, input_data_name=None, output_data_name=None):
-        self.input_reader = input_reader
+    def __init__(self, thread_numb, astra, dev, input_data_name=None, output_data_name=None):
+
+        self.astra = astra
         self.thread_numb = thread_numb
+        self.dev = dev
 
         if input_data_name:
             self.output_array = np.load(input_data_name)
@@ -27,12 +28,12 @@ class ReinforcementLearning():
             self.input_matrix = np.load(output_data_name)
 
         self.cal_numb = 0
-        self.initial_population()
-
 
     def initial_population(self):
         print("start")
-        astra = Astra(self.input_reader)
+        astra = self.astra
+
+        astra.reset()
 
         # Set up some global variables
         num_fetch_threads = self.thread_numb
@@ -45,7 +46,7 @@ class ReinforcementLearning():
 
             # Create queues according to the thread number
             oct_move = astra.get_oct_move_action()
-            second_move = astra.get_oct_shuffle_space(oct_move) if oct_move%Astra.n_move == astra.shuffle else None
+            second_move = astra.get_oct_shuffle_space(oct_move) if oct_move % Astra.n_move == astra.shuffle else None
             enclosure_queue.put([oct_move, second_move])
 
             # Create astra according to the thread number
@@ -58,11 +59,11 @@ class ReinforcementLearning():
             new_astra.working_directory = directory
 
             # Create threads according to the thread number
-            worker = Thread(target=self.update_dev, args=(new_astra, enclosure_queue, out_queue, ))
+            worker = Thread(target=self.update_dev, args=(new_astra, enclosure_queue, out_queue,))
             worker.setDaemon(True)
             worker.start()
 
-        worker = Thread(target=self.learning, args=(enclosure_queue, out_queue, ))
+        worker = Thread(target=self.learning, args=(enclosure_queue, out_queue,))
         worker.setDaemon(True)
         worker.start()
 
@@ -92,14 +93,6 @@ class ReinforcementLearning():
                     out_queue.put(astra.change_data)
                     astra.reset()
                 self.cal_numb += 1
-                print(astra.working_directory)
-                """
-                for x in core.assemblies:
-                    a_string = ""
-                    for y in x:
-                        a_string += y.get_batch()+" "
-                    print(a_string)
-                """
                 print(lists)
 
             if changed and not info:
@@ -113,13 +106,11 @@ class ReinforcementLearning():
 
         while not queue.empty():
             if out_queue.empty():
-                print("waiting..")
                 time.sleep(5)
             else:
                 print("Start")
                 time.sleep(5)
-
-
+                lists = out_queue.get()
 
         """
         env = Astra()

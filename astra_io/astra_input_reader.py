@@ -11,6 +11,10 @@ import copy
 
 class AstraInputReader:
 
+    shuff_block = 0
+    batch_block = 1
+    job_block = 2
+
     def __init__(self, input_name=None):
         """
         Define all blocks to be used in blocks
@@ -143,7 +147,7 @@ class AstraInputReader:
 
     def process_node_burnup_core(self, core):
 
-        for i, assemblies in enumerate(self.blocks[0].core.assemblies):
+        for i, assemblies in enumerate(self.blocks[AstraInputReader.shuff_block].core.assemblies):
             for j, assembly in enumerate(assemblies):
                 batch = core.assemblies[i][j].get_batch()
                 values = core.assemblies[i][j].get_values()
