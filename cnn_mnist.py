@@ -453,4 +453,8 @@ print_test_accuracy()
 
 optimize(num_iterations=99)
 
+
+optimize(num_iterations=120)
+
+
 print_test_accuracy(show_example_errors=True)

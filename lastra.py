@@ -1,34 +1,42 @@
 import argparse
 
-from astra_io.astra_input_reader import AstraInputReader
 from reward_calculator import RewardCalculator
-from astra_io.astra_output_reader import AstraOutputReader
-from astra import Astra
 from astra_io.initial_checker import InitialChecker
 from reinforcement_learning import ReinforcementLearning
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--x', type=float, default=0.0, help='helper')
-    args = parser.parse_args()
+from gui.main_window import MainWindow
 
 
-    input_name = "01_s3c02p_nep_depl.job"
-    thread_number = 12
+def main(input="01_s3c02p_nep_depl.job", output="none", thread=2):
+
+
+    #Main Window
+    main_window = MainWindow(thread)
+    main_window.mainloop()
 
     print("Reference Calculation")
-    checker = InitialChecker(input_name)
+    checker = InitialChecker(input)
     astra = checker.get_proccessed_astra()
 
     print("Reward Calculation")
-    cal = RewardCalculator(thread_number, astra)
+    cal = RewardCalculator(thread, astra)
+    #dev = cal.dev_p
     dev = cal.calculate_rate()
 
     print("Reinforcement")
-    learning = ReinforcementLearning(thread_number, astra, dev, None, None)
+    learning = ReinforcementLearning(thread, astra, dev, None, None)
     learning.initial_population()
 
-    print(args.x)
+    print(args.i)
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--i', type=str, default=0.0, help='helper')
+    parser.add_argument('--o', type=str, default=0.0, help='helper')
+    parser.add_argument('--t', type=float, default=0.0, help='helper')
+    parser.add_argument('--p', type=float, default=0.0, help='helper')
+    parser.add_argument('--d', type=float, default=0.0, help='helper')
+
+    args = parser.parse_args()
+
     main()

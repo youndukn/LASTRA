@@ -14,12 +14,13 @@ class ReinforcementLearning():
     goal_steps = 200
     initial_games = 10000
     score_requirement = 0
+    gamma = 0.95
 
     def __init__(self, thread_numb, astra, dev, input_data_name=None, output_data_name=None):
 
         self.astra = astra
         self.thread_numb = thread_numb
-        self.dev = dev
+        self.dev = np.array(dev)
 
         if input_data_name:
             self.output_array = np.load(input_data_name)
@@ -96,7 +97,9 @@ class ReinforcementLearning():
                 print(lists)
 
             if changed and not info:
-                astra.change_data.append(AstraTrainSet(core, points, [0, 0, 0, 0, 0, 0]))
+                if not lists:
+                    lists = [0, 0, 0, 0, 0, 0]
+                astra.change_data.append(AstraTrainSet(core, points, lists))
                 out_queue.put(astra.change_data)
                 astra.reset()
 
@@ -111,6 +114,25 @@ class ReinforcementLearning():
                 print("Start")
                 time.sleep(5)
                 lists = out_queue.get()
+                pre_input = None
+                pre_output = None
+                pre_reward = None
+                for depth, train_set in enumerate(lists):
+
+                    if pre_input:
+                        now_input = train_set.input
+                        now_output = train_set.output
+                        now_reward = train_set.reward
+
+                        total_reward = np.subtract(now_reward, pre_reward)
+                        total_reward = np.divide(total_reward, self.dev)
+                        total_reward = np.multiply(total_reward, ReinforcementLearning.gamma**depth)
+                        total_reward = np.sum(total_reward)
+
+
+                    pre_input = train_set.input
+                    pre_output = train_set.output
+                    pre_reward = train_set.reward
 
         """
         env = Astra()
