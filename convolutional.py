@@ -11,6 +11,7 @@ class Convolutional():
 
     def __init__(self, data):
         self.data = data
+
         self.filter_size1 = 5          # Convolution filters are 5 x 5 pixels.
         self.num_filters1 = 16         # There are 16 of these filters.
 
@@ -28,20 +29,6 @@ class Convolutional():
         self.num_channels = 4
         self.num_classes = self.image_size/2 * (self.image_size/2 - 1) / 2 + self.max_row/2
 
-
-
-    def plot_image(self):
-        # Get the first images from the test-set.
-        images = self.data.test.images[0:9]
-
-        # Get the true classes for those images.
-        cls_true = self.data.test.cls[0:9]
-
-        # Plot the images and labels using our helper-function above.
-        self.plot_images(images=images, cls_true=cls_true)
-
-    def define_layers(self):
-
         self.x = tf.placeholder(tf.float32, shape=[None, self.img_size_flat], name='x')
 
         self.x_image = tf.reshape(self.x, [-1, self.img_size, self.img_size, self.num_channels])
@@ -49,6 +36,8 @@ class Convolutional():
         self.y_true = tf.placeholder(tf.float32, shape=[None, 10], name='y_true')
 
         self.y_true_cls = tf.argmax(self.y_true, dimension=1)
+
+        self.train_batch_size = 64
 
         layer_conv1, weights_conv1 = \
             self.new_conv_layer(input=self.x_image,
@@ -85,8 +74,6 @@ class Convolutional():
 
         cost = tf.reduce_mean(cross_entropy)
 
-        self.train_batch_size = 64
-
         self.optimizer = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(cost)
 
         correct_prediction = tf.equal(y_pred_cls, self.y_true_cls)
@@ -96,6 +83,22 @@ class Convolutional():
         self.session = tf.Session()
 
         self.session.run(tf.global_variables_initializer())
+
+        self.total_iterations = 0
+
+
+    def plot_image(self):
+        # Get the first images from the test-set.
+        images = self.data.test.images[0:9]
+
+        # Get the true classes for those images.
+        cls_true = self.data.test.cls[0:9]
+
+        # Plot the images and labels using our helper-function above.
+        self.plot_images(images=images, cls_true=cls_true)
+
+
+    def define_layers(self):
 
         self.test_batch_size = 256
 
@@ -141,7 +144,6 @@ class Convolutional():
         # in a single Notebook cell.
         plt.show()
 
-
     def new_weights(shape):
         return tf.Variable(tf.truncated_normal(shape, stddev=0.05))
 
@@ -149,7 +151,6 @@ class Convolutional():
         #equivalent to y intercept
         #constant value carried over across matrix math
         return tf.Variable(tf.constant(0.05, shape=[length]))
-
 
     def new_conv_layer(self, input,              # The previous layer.
                        num_input_channels, # Num. channels in prev. layer.
