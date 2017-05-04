@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import numpy as np
-from sklearn.metrics import confusion_matrix
 import time
 from datetime import timedelta
 import math
@@ -33,7 +32,7 @@ class Convolutional():
 
         self.x_image = tf.reshape(self.x, [-1, self.img_size, self.img_size, self.num_channels])
 
-        self.y_true = tf.placeholder(tf.float32, shape=[None, 10], name='y_true')
+        self.y_true = tf.placeholder(tf.float32, shape=[None, self.num_classes], name='y_true')
 
         self.y_true_cls = tf.argmax(self.y_true, dimension=1)
 
@@ -86,18 +85,6 @@ class Convolutional():
 
         self.total_iterations = 0
 
-
-    def plot_image(self):
-        # Get the first images from the test-set.
-        images = self.data.test.images[0:9]
-
-        # Get the true classes for those images.
-        cls_true = self.data.test.cls[0:9]
-
-        # Plot the images and labels using our helper-function above.
-        self.plot_images(images=images, cls_true=cls_true)
-
-
     def define_layers(self):
 
         self.test_batch_size = 256
@@ -113,7 +100,7 @@ class Convolutional():
 
         self.optimize(num_iterations=99)
 
-        self.print_test_accuracy(show_example_errors=True)
+        self.print_test_accuracy()
 
 
     def plot_images(self, images, cls_true, cls_pred=None):
@@ -326,39 +313,7 @@ class Convolutional():
                     cls_true=cls_true[0:9],
                     cls_pred=cls_pred[0:9])
 
-    def plot_confusion_matrix(self, cls_pred):
-        # This is called from print_test_accuracy() below.
-
-        # cls_pred is an array of the predicted class-number for
-        # all images in the test-set.
-
-        # Get the true classifications for the test-set.
-        cls_true = self.data.test.cls
-
-        # Get the confusion matrix using sklearn.
-        cm = confusion_matrix(y_true=cls_true,
-                              y_pred=cls_pred)
-
-        # Print the confusion matrix as text.
-        print(cm)
-
-        # Plot the confusion matrix as an image.
-        plt.matshow(cm)
-
-        # Make various adjustments to the plot.
-        plt.colorbar()
-        tick_marks = np.arange(self.num_classes)
-        plt.xticks(tick_marks, range(self.num_classes))
-        plt.yticks(tick_marks, range(self.num_classes))
-        plt.xlabel('Predicted')
-        plt.ylabel('True')
-
-        # Ensure the plot is shown correctly with multiple plots
-        # in a single Notebook cell.
-        plt.show()
-
-    def print_test_accuracy(self, show_example_errors=False,
-                            show_confusion_matrix=False):
+    def print_test_accuracy(self, show_example_errors=False):
 
         # Number of images in the test-set.
         num_test = len(self.data.test.images)
@@ -418,7 +373,3 @@ class Convolutional():
             print("Example errors:")
             self.plot_example_errors(cls_pred=cls_pred, correct=correct)
 
-        # Plot the confusion matrix, if desired.
-        if show_confusion_matrix:
-            print("Confusion Matrix:")
-            self.plot_confusion_matrix(cls_pred=cls_pred)

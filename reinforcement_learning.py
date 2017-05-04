@@ -7,7 +7,7 @@ from threading import Thread
 
 from data.astra_train_set import AstraTrainSet
 import time
-
+from convolutional import Convolutional
 
 class ReinforcementLearning():
     learning_rate = 1e-3
@@ -29,6 +29,8 @@ class ReinforcementLearning():
             self.input_matrix = np.load(output_data_name)
 
         self.cal_numb = 0
+
+        self.model = Convolutional()
 
     def initial_population(self):
         print("start")
@@ -116,6 +118,9 @@ class ReinforcementLearning():
                 pre_input = None
                 pre_output = None
                 pre_reward = None
+
+                total_reward = 0
+
                 for depth, train_set in enumerate(lists):
 
                     if pre_input:
@@ -123,15 +128,21 @@ class ReinforcementLearning():
                         now_output = train_set.output
                         now_reward = train_set.reward
 
-                        total_reward = np.subtract(now_reward, pre_reward)
-                        total_reward = np.divide(total_reward, self.dev)
-                        total_reward = np.multiply(total_reward, ReinforcementLearning.gamma**depth)
-                        total_reward = np.sum(total_reward)
-
+                        reward = np.subtract(now_reward, pre_reward)
+                        reward = np.divide(reward, self.dev)
+                        reward = np.multiply(reward, ReinforcementLearning.gamma**depth)
+                        reward = np.sum(reward)
+                        total_reward += reward
 
                     pre_input = train_set.input
                     pre_output = train_set.output
                     pre_reward = train_set.reward
+
+                if total_reward > 0:
+                    self.model.data = lists
+                    self.model.optimize(len(lists))
+
+
 
         """
         env = Astra()

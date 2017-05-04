@@ -45,7 +45,6 @@ class Astra():
         self.train_set = AstraTrainSet(None, None, None)
         self.change_data = [self.train_set]
 
-        self.model = Convolutional()
 
     def reset(self):
         self.astra_input_reader.blocks[AstraInputReader.shuff_block].core = copy.deepcopy(self.original_core)
