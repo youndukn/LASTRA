@@ -7,6 +7,7 @@ import os
 from data.astra_train_set import AstraTrainSet
 from astra_io.astra_input_reader import AstraInputReader
 from astra_io.astra_output_reader import AstraOutputReader
+from convolutional import Convolutional
 
 class Astra():
 
@@ -44,16 +45,7 @@ class Astra():
         self.train_set = AstraTrainSet(None, None, None)
         self.change_data = [self.train_set]
 
-    def make(self):
-        output_string = self.run_astra(self.astra_input_reader.blocks[AstraInputReader.shuff_block])
-        if output_string:
-            reading_out = AstraOutputReader(output_string=output_string)
-            reading_out.parse_block_contents()
-            self.calculate_reward(reading_out.blocks[AstraInputReader.job_block].lists())
-            self.original_reward = self.absolute_reward
-            return True
-        else:
-            return False
+        self.model = Convolutional()
 
     def reset(self):
         self.astra_input_reader.blocks[AstraInputReader.shuff_block].core = copy.deepcopy(self.original_core)
@@ -158,25 +150,3 @@ class Astra():
                 position.append([row, col])
         return position
 
-    def calculate_reward(self, lists):
-        burnup = 0
-        cbc = 0
-        fr = 0
-        fz = 0
-        fxy = 0
-        fq = 0
-
-        for a_list in lists:
-            burnup = a_list[1] if burnup < a_list[1] else burnup
-            cbc = a_list[3] if cbc < a_list[3] else cbc
-            fr = a_list[7] if fr < a_list[7] else fr
-            fz = a_list[8] if fz < a_list[8] else fz
-            fxy = a_list[9] if fxy < a_list[9] else fxy
-            fq = a_list[10] if fq < a_list[10] else fq
-
-        reward = burnup / 100000 + cbc / 3000 + fr / 3 + fz / 3 + fxy / 3
-        absolute_reward = self.absolute_reward
-        self.absolute_reward = reward
-        reward -= absolute_reward
-
-        return reward

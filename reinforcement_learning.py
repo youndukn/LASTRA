@@ -97,10 +97,9 @@ class ReinforcementLearning():
                 print(lists)
 
             if changed and not info:
-                if not lists:
-                    lists = [0, 0, 0, 0, 0, 0]
-                astra.change_data.append(AstraTrainSet(core, points, lists))
-                out_queue.put(astra.change_data)
+                if lists:
+                    astra.change_data.append(AstraTrainSet(core, points, lists))
+                    out_queue.put(astra.change_data)
                 astra.reset()
 
             queue.task_done()

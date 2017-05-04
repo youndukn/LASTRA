@@ -14,7 +14,7 @@ class RewardCalculator:
     def __init__(self, thread_numb, astra):
         self.__astra_input_reader = astra.astra_input_reader
         self.numb = 6
-        self.max = (100000, 3000, 3, 3, 3, 3)
+        self.max = (17576, 1174.5, 1.49, 1.15, 1.55, 1.71)
         self.lists = []
         self.dev = [0, 0, 0, 0, 0, 0]
         self.dev_p = (64.39, 22.8, 0.08, 0.004, 0.10, 0.088)
@@ -27,10 +27,6 @@ class RewardCalculator:
         astra = Astra(self.__astra_input_reader)
 
         astra.reset()
-        core, lists, changed, info = astra.run_process_astra()
-
-        if not info:
-            raise InputError("There was error in the input")
 
         # Set up some global variables
         num_fetch_threads = self.thread_numb
