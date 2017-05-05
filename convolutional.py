@@ -8,7 +8,7 @@ import math
 
 class Convolutional():
 
-    def __init__(self, data):
+    def __init__(self, data = None):
         self.data = data
 
         self.filter_size1 = 5          # Convolution filters are 5 x 5 pixels.
@@ -26,7 +26,7 @@ class Convolutional():
         self.img_shape = (self.img_size, self.img_size)
 
         self.num_channels = 4
-        self.num_classes = self.image_size/2 * (self.image_size/2 - 1) / 2 + self.max_row/2
+        self.num_classes = self.img_size/2 * (self.img_size/2 - 1) / 2 + self.img_size/2
 
         self.x = tf.placeholder(tf.float32, shape=[None, self.img_size_flat], name='x')
 
@@ -85,6 +85,9 @@ class Convolutional():
 
         self.total_iterations = 0
 
+    def set_data(self, data):
+        self.data = data
+
     def define_layers(self):
 
         self.test_batch_size = 256
@@ -101,6 +104,7 @@ class Convolutional():
         self.optimize(num_iterations=99)
 
         self.print_test_accuracy()
+
 
 
     def plot_images(self, images, cls_true, cls_pred=None):
@@ -372,4 +376,83 @@ class Convolutional():
         if show_example_errors:
             print("Example errors:")
             self.plot_example_errors(cls_pred=cls_pred, correct=correct)
+
+
+class SimpleConvolutional:
+    def __init__(self):
+
+        self.img_size = 20
+
+        self.num_classes = (self.img_size / 2 * (self.img_size / 2 - 1) / 2 + self.img_size / 2) * 10
+
+        self.batch_size = 64
+
+        self.img_size_flat = self.img_size * self.img_size
+
+        self.x = tf.placeholder(tf.float32, shape=[None, self.img_size_flat], name='x')
+
+        self.y = tf.placeholder(tf.float32, shape=[None, self.num_classes], name='y_true')
+
+        self.keep_rate = 0.8
+
+        self.keep_prob = tf.placeholder(tf.float32)
+
+    @staticmethod
+    def conv2d(x, W):
+        return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+
+    @staticmethod
+    def maxpool2d(x):
+        #                        size of window         movement of window
+        return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+    def convolutional_neural_network(self, x):
+        weights = {'W_conv1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
+                   'W_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+                   'W_fc': tf.Variable(tf.random_normal([7 * 7 * 64, 1024])),
+                   'out': tf.Variable(tf.random_normal([1024, self.n_classes]))}
+
+        biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
+                  'b_conv2': tf.Variable(tf.random_normal([64])),
+                  'b_fc': tf.Variable(tf.random_normal([1024])),
+                  'out': tf.Variable(tf.random_normal([self.n_classes]))}
+
+        x = tf.reshape(x, shape=[-1, 28, 28, 1])
+
+        conv1 = tf.nn.relu(tf.conv2d(x, weights['W_conv1']) + biases['b_conv1'])
+        conv1 = tf.maxpool2d(conv1)
+
+        conv2 = tf.nn.relu(tf.conv2d(conv1, weights['W_conv2']) + biases['b_conv2'])
+        conv2 = tf.maxpool2d(conv2)
+
+        fc = tf.reshape(conv2, [-1, 7 * 7 * 64])
+        fc = tf.nn.relu(tf.matmul(fc, weights['W_fc']) + biases['b_fc'])
+        fc = tf.nn.dropout(fc, self.keep_rate)
+
+        output = tf.matmul(fc, weights['out']) + biases['out']
+
+        return output
+
+    def train_neural_network(self, x):
+        prediction = self.convolutional_neural_network(x)
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(prediction, y))
+        optimizer = tf.train.AdamOptimizer().minimize(cost)
+
+        hm_epochs = 10
+        with tf.Session() as sess:
+            sess.run(tf.initialize_all_variables())
+
+            for epoch in range(hm_epochs):
+                epoch_loss = 0
+                for _ in range(int(self.data.train.num_examples / self.batch_size)):
+                    epoch_x, epoch_y = self.mnist.train.next_batch(self.batch_size)
+                    _, c = sess.run([optimizer, cost], feed_dict={self.x: epoch_x, self.y: epoch_y})
+                    epoch_loss += c
+
+                print('Epoch', epoch, 'completed out of', hm_epochs, 'loss:', epoch_loss)
+
+            correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(self.y, 1))
+
+            accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
+            print('Accuracy:', accuracy.eval({self.x: self.data.test.images, self.y: self.data.test.labels}))
 

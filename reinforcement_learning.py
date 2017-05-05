@@ -7,7 +7,7 @@ from threading import Thread
 
 from data.astra_train_set import AstraTrainSet
 import time
-from convolutional import Convolutional
+from convolutional import SimpleConvolutional
 
 class ReinforcementLearning():
     learning_rate = 1e-3
@@ -30,7 +30,7 @@ class ReinforcementLearning():
 
         self.cal_numb = 0
 
-        self.model = Convolutional()
+        self.model = SimpleConvolutional()
 
     def initial_population(self):
         print("start")
