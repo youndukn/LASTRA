@@ -383,7 +383,7 @@ class SimpleConvolutional:
 
         self.inputs = None
 
-        self.outputs = None
+        self.rewards = None
 
         self.img_size = 20
 
@@ -439,7 +439,7 @@ class SimpleConvolutional:
 
     def train_neural_network(self, x):
         prediction = self.convolutional_neural_network(x)
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(prediction, y))
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(prediction, self.y))
         optimizer = tf.train.AdamOptimizer().minimize(cost)
 
         hm_epochs = 10
@@ -448,9 +448,9 @@ class SimpleConvolutional:
 
             epoch_loss = 0
 
-            epoch_x = self.data.inputs
-            epoch_y = self.data.outputs
-            _, c = sess.run([optimizer, cost], feed_dict={self.x: epoch_x, self.y: epoch_y})
+            epoch_x = self.inputs
+            epoch_y = self.rewards
+            _, c = sess.run([optimizer, cost], feed_dict={x: epoch_x, self.y: epoch_y})
             epoch_loss += c
 
             print('Epoch', epoch_loss, 'completed out of', hm_epochs, 'loss:', epoch_loss)
@@ -458,5 +458,5 @@ class SimpleConvolutional:
             correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(self.y, 1))
 
             accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-            print('Accuracy:', accuracy.eval({self.x: self.data.test.images, self.y: self.data.test.labels}))
+            print('Accuracy:', accuracy.eval({x: self.data.test.images, self.y: self.data.test.labels}))
 
