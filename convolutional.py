@@ -381,6 +381,10 @@ class Convolutional():
 class SimpleConvolutional:
     def __init__(self):
 
+        self.inputs = None
+
+        self.outputs = None
+
         self.img_size = 20
 
         self.num_classes = (self.img_size / 2 * (self.img_size / 2 - 1) / 2 + self.img_size / 2) * 10
@@ -442,14 +446,14 @@ class SimpleConvolutional:
         with tf.Session() as sess:
             sess.run(tf.initialize_all_variables())
 
-            for epoch in range(hm_epochs):
-                epoch_loss = 0
-                for _ in range(int(self.data.train.num_examples / self.batch_size)):
-                    epoch_x, epoch_y = self.mnist.train.next_batch(self.batch_size)
-                    _, c = sess.run([optimizer, cost], feed_dict={self.x: epoch_x, self.y: epoch_y})
-                    epoch_loss += c
+            epoch_loss = 0
 
-                print('Epoch', epoch, 'completed out of', hm_epochs, 'loss:', epoch_loss)
+            epoch_x = self.data.inputs
+            epoch_y = self.data.outputs
+            _, c = sess.run([optimizer, cost], feed_dict={self.x: epoch_x, self.y: epoch_y})
+            epoch_loss += c
+
+            print('Epoch', epoch_loss, 'completed out of', hm_epochs, 'loss:', epoch_loss)
 
             correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(self.y, 1))
 
