@@ -391,6 +391,8 @@ class SimpleConvolutional:
 
         self.batch_size = 64
 
+        state_shape = [self.img_size, self.img_size, 4]
+
         self.img_size_flat = self.img_size * self.img_size
 
         self.x = tf.placeholder(tf.float32, shape=[None, self.img_size_flat], name='x')
