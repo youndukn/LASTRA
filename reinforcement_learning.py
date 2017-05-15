@@ -120,15 +120,13 @@ class ReinforcementLearning():
                 pre_output = None
                 pre_reward = None
 
-
-
                 for depth, train_set in enumerate(lists):
 
                     for i in len(train_set.reward):
                         if i == 0:
-                            current_total_reward = max(self.maximum_rewards[i], train_set.reward[i]) - \
-                                                   max(self.maximum_rewards[i], pre_reward[i])
-                            total_reward = pre_reward - max(self.maximum_rewards[i], train_set.reward[i])
+                            total_reward = total_reward +(self.maximum_rewards[i] - \
+                                                   max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                                   self.maximum_rewards[i]
                         else:
                             total_reward = min(self.maximum_rewards[i], train_set.reward[i])
 
