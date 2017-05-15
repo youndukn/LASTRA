@@ -16,12 +16,13 @@ class ReinforcementLearning():
     score_requirement = 0
     gamma = 0.95
 
-    def __init__(self, thread_numb, astra, dev, input_data_name=None, output_data_name=None):
+    def __init__(self, thread_numb, astra, dev, maximum_rewards,  input_data_name=None, output_data_name=None):
 
         self.astra = astra
         self.thread_numb = thread_numb
         self.dev = np.array(dev)
-
+        self.maximum_rewards = maximum_rewards
+        self.initial_rewards = astra.train_set.reward
         if input_data_name:
             self.output_array = np.load(input_data_name)
 
@@ -33,7 +34,7 @@ class ReinforcementLearning():
         self.model = SimpleConvolutional()
 
     def initial_population(self):
-        print("start")
+
         astra = self.astra
 
         astra.reset()
@@ -119,10 +120,21 @@ class ReinforcementLearning():
                 pre_output = None
                 pre_reward = None
 
-                total_reward = 0
+
 
                 for depth, train_set in enumerate(lists):
 
+                    for i in len(train_set.reward):
+                        if i == 0:
+                            current_total_reward = max(self.maximum_rewards[i], train_set.reward[i]) - \
+                                                   max(self.maximum_rewards[i], pre_reward[i])
+                            total_reward = pre_reward - max(self.maximum_rewards[i], train_set.reward[i])
+                        else:
+                            total_reward = min(self.maximum_rewards[i], train_set.reward[i])
+
+                    pre_reward = train_set.reward
+
+                    """
                     if pre_input:
                         now_input = train_set.input
                         now_output = train_set.output
@@ -137,7 +149,7 @@ class ReinforcementLearning():
                     pre_input = train_set.input
                     pre_output = train_set.output
                     pre_reward = train_set.reward
-
+                """
                 if total_reward > 0:
                     self.model.data = lists
                     self.model.optimize(len(lists))

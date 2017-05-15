@@ -20,10 +20,11 @@ def main(input="test2.job", output="none", thread=12):
     print("Reward Calculation")
     cal = RewardCalculator(thread, astra)
     dev = cal.dev_p
+    maximum_rewards = cal.max
     #dev = cal.calculate_rate()
 
     print("Reinforcement")
-    learning = ReinforcementLearning(thread, astra, dev, None, None)
+    learning = ReinforcementLearning(thread, astra, dev, maximum_rewards, None, None)
     learning.initial_population()
 
     print(args.i)
