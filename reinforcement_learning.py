@@ -116,21 +116,20 @@ class ReinforcementLearning():
                 print("Start")
                 time.sleep(5)
                 lists = out_queue.get()
-                pre_input = None
-                pre_output = None
-                pre_reward = None
 
                 for depth, train_set in enumerate(lists):
 
                     for i in len(train_set.reward):
                         if i == 0:
-                            total_reward = total_reward +(self.maximum_rewards[i] - \
-                                                   max(self.maximum_rewards[i], train_set.reward[i])) / \
-                                                   self.maximum_rewards[i]
+                            total_reward = total_reward + \
+                                           (self.maximum_rewards[i] - \
+                                            max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                           self.maximum_rewards[i]
                         else:
-                            total_reward = min(self.maximum_rewards[i], train_set.reward[i])
-
-                    pre_reward = train_set.reward
+                            total_reward = total_reward + \
+                                           (min(self.maximum_rewards[i], train_set.reward[i]) -
+                                            self.maximum_rewards[i]) / \
+                                           self.maximum_rewards[i]
 
                     """
                     if pre_input:
@@ -147,7 +146,312 @@ class ReinforcementLearning():
                     pre_input = train_set.input
                     pre_output = train_set.output
                     pre_reward = train_set.reward
-                """
+                    """
+
+                if total_reward > 0:
+                    self.model.data = lists
+                    self.model.optimize(len(lists))
+                print("Start")
+                time.sleep(5)
+                lists = out_queue.get()
+
+                for depth, train_set in enumerate(lists):
+
+                    for i in len(train_set.reward):
+                        if i == 0:
+                            total_reward = total_reward + \
+                                           (self.maximum_rewards[i] - \
+                                            max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                           self.maximum_rewards[i]
+                        else:
+                            total_reward = total_reward + \
+                                           (min(self.maximum_rewards[i], train_set.reward[i]) -
+                                            self.maximum_rewards[i]) / \
+                                           self.maximum_rewards[i]
+
+                    """
+                    if pre_input:
+                        now_input = train_set.input
+                        now_output = train_set.output
+                        now_reward = train_set.reward
+
+                        reward = np.subtract(now_reward, pre_reward)
+                        reward = np.divide(reward, self.dev)
+                        reward = np.multiply(reward, ReinforcementLearning.gamma**depth)
+                        reward = np.sum(reward)
+                        total_reward += reward
+
+                    pre_input = train_set.input
+                    pre_output = train_set.output
+                    pre_reward = train_set.reward
+                    """
+
+                if total_reward > 0:
+                    self.model.data = lists
+                    self.model.optimize(len(lists))
+                print("Start")
+                time.sleep(5)
+                lists = out_queue.get()
+
+                for depth, train_set in enumerate(lists):
+
+                    for i in len(train_set.reward):
+                        if i == 0:
+                            total_reward = total_reward + \
+                                           (self.maximum_rewards[i] - \
+                                            max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                           self.maximum_rewards[i]
+                        else:
+                            total_reward = total_reward + \
+                                           (min(self.maximum_rewards[i], train_set.reward[i]) -
+                                            self.maximum_rewards[i]) / \
+                                           self.maximum_rewards[i]
+
+                    """
+                    if pre_input:
+                        now_input = train_set.input
+                        now_output = train_set.output
+                        now_reward = train_set.reward
+
+                        reward = np.subtract(now_reward, pre_reward)
+                        reward = np.divide(reward, self.dev)
+                        reward = np.multiply(reward, ReinforcementLearning.gamma**depth)
+                        reward = np.sum(reward)
+                        total_reward += reward
+
+                    pre_input = train_set.input
+                    pre_output = train_set.output
+                    pre_reward = train_set.reward
+                    """
+
+                if total_reward > 0:
+                    self.model.data = lists
+                    self.model.optimize(len(lists))
+                print("Start")
+                time.sleep(5)
+                lists = out_queue.get()
+
+                for depth, train_set in enumerate(lists):
+
+                    for i in len(train_set.reward):
+                        if i == 0:
+                            total_reward = total_reward + \
+                                           (self.maximum_rewards[i] - \
+                                            max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                           self.maximum_rewards[i]
+                        else:
+                            total_reward = total_reward + \
+                                           (min(self.maximum_rewards[i], train_set.reward[i]) -
+                                            self.maximum_rewards[i]) / \
+                                           self.maximum_rewards[i]
+
+                    """
+                    if pre_input:
+                        now_input = train_set.input
+                        now_output = train_set.output
+                        now_reward = train_set.reward
+
+                        reward = np.subtract(now_reward, pre_reward)
+                        reward = np.divide(reward, self.dev)
+                        reward = np.multiply(reward, ReinforcementLearning.gamma**depth)
+                        reward = np.sum(reward)
+                        total_reward += reward
+
+                    pre_input = train_set.input
+                    pre_output = train_set.output
+                    pre_reward = train_set.reward
+                    """
+
+                if total_reward > 0:
+                    self.model.data = lists
+                    self.model.optimize(len(lists))
+                print("Start")
+                time.sleep(5)
+                lists = out_queue.get()
+
+                for depth, train_set in enumerate(lists):
+
+                    for i in len(train_set.reward):
+                        if i == 0:
+                            total_reward = total_reward + \
+                                           (self.maximum_rewards[i] - \
+                                            max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                           self.maximum_rewards[i]
+                        else:
+                            total_reward = total_reward + \
+                                           (min(self.maximum_rewards[i], train_set.reward[i]) -
+                                            self.maximum_rewards[i]) / \
+                                           self.maximum_rewards[i]
+
+                    """
+                    if pre_input:
+                        now_input = train_set.input
+                        now_output = train_set.output
+                        now_reward = train_set.reward
+
+                        reward = np.subtract(now_reward, pre_reward)
+                        reward = np.divide(reward, self.dev)
+                        reward = np.multiply(reward, ReinforcementLearning.gamma**depth)
+                        reward = np.sum(reward)
+                        total_reward += reward
+
+                    pre_input = train_set.input
+                    pre_output = train_set.output
+                    pre_reward = train_set.reward
+                    """
+
+                if total_reward > 0:
+                    self.model.data = lists
+                    self.model.optimize(len(lists))
+                print("Start")
+                time.sleep(5)
+                lists = out_queue.get()
+
+                for depth, train_set in enumerate(lists):
+
+                    for i in len(train_set.reward):
+                        if i == 0:
+                            total_reward = total_reward + \
+                                           (self.maximum_rewards[i] - \
+                                            max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                           self.maximum_rewards[i]
+                        else:
+                            total_reward = total_reward + \
+                                           (min(self.maximum_rewards[i], train_set.reward[i]) -
+                                            self.maximum_rewards[i]) / \
+                                           self.maximum_rewards[i]
+
+                    """
+                    if pre_input:
+                        now_input = train_set.input
+                        now_output = train_set.output
+                        now_reward = train_set.reward
+
+                        reward = np.subtract(now_reward, pre_reward)
+                        reward = np.divide(reward, self.dev)
+                        reward = np.multiply(reward, ReinforcementLearning.gamma**depth)
+                        reward = np.sum(reward)
+                        total_reward += reward
+
+                    pre_input = train_set.input
+                    pre_output = train_set.output
+                    pre_reward = train_set.reward
+                    """
+
+                if total_reward > 0:
+                    self.model.data = lists
+                    self.model.optimize(len(lists))
+                print("Start")
+                time.sleep(5)
+                lists = out_queue.get()
+
+                for depth, train_set in enumerate(lists):
+
+                    for i in len(train_set.reward):
+                        if i == 0:
+                            total_reward = total_reward + \
+                                           (self.maximum_rewards[i] - \
+                                            max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                           self.maximum_rewards[i]
+                        else:
+                            total_reward = total_reward + \
+                                           (min(self.maximum_rewards[i], train_set.reward[i]) -
+                                            self.maximum_rewards[i]) / \
+                                           self.maximum_rewards[i]
+
+                    """
+                    if pre_input:
+                        now_input = train_set.input
+                        now_output = train_set.output
+                        now_reward = train_set.reward
+
+                        reward = np.subtract(now_reward, pre_reward)
+                        reward = np.divide(reward, self.dev)
+                        reward = np.multiply(reward, ReinforcementLearning.gamma**depth)
+                        reward = np.sum(reward)
+                        total_reward += reward
+
+                    pre_input = train_set.input
+                    pre_output = train_set.output
+                    pre_reward = train_set.reward
+                    """
+
+                if total_reward > 0:
+                    self.model.data = lists
+                    self.model.optimize(len(lists))
+                print("Start")
+                time.sleep(5)
+                lists = out_queue.get()
+
+                for depth, train_set in enumerate(lists):
+
+                    for i in len(train_set.reward):
+                        if i == 0:
+                            total_reward = total_reward + \
+                                           (self.maximum_rewards[i] - \
+                                            max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                           self.maximum_rewards[i]
+                        else:
+                            total_reward = total_reward + \
+                                           (min(self.maximum_rewards[i], train_set.reward[i]) -
+                                            self.maximum_rewards[i]) / \
+                                           self.maximum_rewards[i]
+
+                    """
+                    if pre_input:
+                        now_input = train_set.input
+                        now_output = train_set.output
+                        now_reward = train_set.reward
+
+                        reward = np.subtract(now_reward, pre_reward)
+                        reward = np.divide(reward, self.dev)
+                        reward = np.multiply(reward, ReinforcementLearning.gamma**depth)
+                        reward = np.sum(reward)
+                        total_reward += reward
+
+                    pre_input = train_set.input
+                    pre_output = train_set.output
+                    pre_reward = train_set.reward
+                    """
+
+                if total_reward > 0:
+                    self.model.data = lists
+                    self.model.optimize(len(lists))
+                print("Start")
+                time.sleep(5)
+                lists = out_queue.get()
+
+                for depth, train_set in enumerate(lists):
+
+                    for i in len(train_set.reward):
+                        if i == 0:
+                            total_reward = total_reward + \
+                                           (self.maximum_rewards[i] - \
+                                            max(self.maximum_rewards[i], train_set.reward[i])) / \
+                                           self.maximum_rewards[i]
+                        else:
+                            total_reward = total_reward + \
+                                           (min(self.maximum_rewards[i], train_set.reward[i]) -
+                                            self.maximum_rewards[i]) / \
+                                           self.maximum_rewards[i]
+
+                    """
+                    if pre_input:
+                        now_input = train_set.input
+                        now_output = train_set.output
+                        now_reward = train_set.reward
+
+                        reward = np.subtract(now_reward, pre_reward)
+                        reward = np.divide(reward, self.dev)
+                        reward = np.multiply(reward, ReinforcementLearning.gamma**depth)
+                        reward = np.sum(reward)
+                        total_reward += reward
+
+                    pre_input = train_set.input
+                    pre_output = train_set.output
+                    pre_reward = train_set.reward
+                    """
+
                 if total_reward > 0:
                     self.model.data = lists
                     self.model.optimize(len(lists))
