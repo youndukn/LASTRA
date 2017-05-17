@@ -42,7 +42,7 @@ class Astra():
         self.original_reward = 0
         self.working_directory = ".{}".format(os.path.sep)
 
-        self.train_set = AstraTrainSet(None, None, None)
+        self.train_set = AstraTrainSet(None, None, None, None)
         self.change_data = [self.train_set]
 
 

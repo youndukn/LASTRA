@@ -33,7 +33,7 @@ class InitialChecker():
 
         #Set default Starting Paramter
         core, lists, successful = reading_out.process_astra()
-        self.astra.train_set = AstraTrainSet(core, [], lists)
+        self.astra.train_set = AstraTrainSet(core, [], list, None)
 
         self.astra.reset()
 

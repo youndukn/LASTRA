@@ -154,9 +154,12 @@ class Core:
         for row_assemblies in self.assemblies:
             a_array = []
             for assembly in row_assemblies:
-                a_array.append(assembly.get_values()[index])
+                if len(assembly.get_values()) > index:
+                    a_array.append(assembly.get_values()[index])
+                else:
+                    a_array.append(0)
             a_matrix.append(a_array)
-
+        return a_matrix
 
     def __swap_assemblies(self, position1, position2):
         assembly_temp = self.assemblies[position1[0]][position1[1]]
