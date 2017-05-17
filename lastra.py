@@ -6,7 +6,7 @@ from reinforcement_learning import ReinforcementLearning
 from gui.main_window import MainWindow
 import time
 
-def main(input="test2.job", output="none", thread=12):
+def main(input="test2.job", output="none", thread=2):
 
 
     #Main Window

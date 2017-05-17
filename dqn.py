@@ -175,16 +175,16 @@ import argparse
 
 # Default base-directory for the checkpoints and log-files.
 # The environment-name will be appended to this.
-checkpoint_base_dir = 'checkpoints_tutorial16/'
+checkpoint_base_dir = 'checkpoints/'
 
 # Combination of base-dir and environment-name.
-checkpoint_dir = None
+checkpoint_dir = os.path.join(checkpoint_base_dir, "game/")
 
-# Full path for the log-file for rewards.
-log_reward_path = None
+# File-path for the log-file for episode rewards.
+log_reward_path = os.path.join(checkpoint_dir, "log_reward.txt")
 
-# Full path for the log-file for Q-values.
-log_q_values_path = None
+# File-path for the log-file for Q-values.
+log_q_values_path = os.path.join(checkpoint_dir, "log_q_values.txt")
 
 
 def update_paths(env_name):

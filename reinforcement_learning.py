@@ -34,7 +34,7 @@ class ReinforcementLearning():
         self.cal_numb = 0
 
         # The number of possible actions that the agent may take in every step.
-        self.num_actions = self.astra.max_position
+        self.num_actions = int(self.astra.max_position)
 
         # Whether we are training (True) or testing (False).
         self.training = training
@@ -49,9 +49,6 @@ class ReinforcementLearning():
         else:
             self.log_q_values = None
             self.log_reward = None
-
-        # List of string-names for the actions in the game-environment.
-        self.action_names = self.env.unwrapped.get_action_meanings()
 
         # Epsilon-greedy policy for selecting an action from the Q-values.
         # During training the epsilon is decreased linearly over the given
