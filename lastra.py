@@ -24,7 +24,7 @@ def main(input="test2.job", output="none", thread=12):
     #dev = cal.calculate_rate()
 
     print("Reinforcement")
-    learning = ReinforcementLearning(thread, astra, dev, maximum_rewards, None, None)
+    learning = ReinforcementLearning(thread, astra, maximum_rewards, None, None)
     learning.initial_population()
 
     print(args.i)

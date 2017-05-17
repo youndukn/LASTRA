@@ -546,7 +546,7 @@ class ReplayMemory:
         """
 
         # Array for the previous states of the game-environment.
-        self.states = np.zeros(shape=[size] + state_shape, dtype=np.float)
+        self.states = np.zeros(shape=[size] + state_shape, dtype=np.int)
 
         # Array for the Q-values corresponding to the states.
         self.q_values = np.zeros(shape=[size, num_actions], dtype=np.float)
