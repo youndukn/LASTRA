@@ -42,7 +42,7 @@ class Astra():
         self.original_reward = 0
         self.working_directory = ".{}".format(os.path.sep)
 
-        self.train_set = AstraTrainSet(None, None, None, None)
+        self.train_set = AstraTrainSet(None, None, None, None, None)
         self.change_data = [self.train_set]
 
 
@@ -92,11 +92,7 @@ class Astra():
             reading_out.parse_block_contents()
 
             core, lists, successful = reading_out.process_astra()
-
-            if not successful:
-                return core, None, True, successful
-            else:
-                return core, lists, True, successful
+            return core, lists, True, successful
 
         return None, None, True, False
 

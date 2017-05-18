@@ -17,7 +17,6 @@ class AstraOutputReader:
     enrc_block =7
     cbat_block = 8
 
-
     def __init__(self, output_name=None, output_string=None):
         """
         Define all blocks to be used in blocks
@@ -164,6 +163,9 @@ class AstraOutputReader:
 
         self.parse_block_contents()
 
+        if len(self.blocks[AstraOutputReader.sum_block].dictionary) == 0:
+            return None, None, False
+
         if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:
             for key in self.blocks[AstraOutputReader.error_block].dictionary.keys():
                 print(self.blocks[AstraOutputReader.error_block].dictionary[key])
@@ -174,7 +176,7 @@ class AstraOutputReader:
             for key in self.blocks[AstraOutputReader.warn_block].dictionary.keys():
                 print(self.blocks[AstraOutputReader.warn_block].dictionary[key])
                 break
-            return None, None, False
+            return self.get_input_parameters(), self.get_output_parameters(), False
 
         return self.get_input_parameters(), self.get_output_parameters(), True
 

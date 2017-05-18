@@ -83,7 +83,7 @@ class RewardCalculator:
             core, lists, changed, info = astra.change(points[0], points[1])
 
             if changed and info:
-                astra.change_data.append(AstraTrainSet(core, points, lists))
+                astra.change_data.append(AstraTrainSet(core, points, lists, False, None))
                 if len(astra.change_data) > 20:
                     self.lists.append(astra.change_data)
                     astra.reset()
@@ -101,7 +101,7 @@ class RewardCalculator:
             if changed and not info:
                 if not lists:
                     lists = [0, 0, 0, 0, 0, 0]
-                astra.change_data.append(AstraTrainSet(core, points, lists))
+                astra.change_data.append(AstraTrainSet(core, points, lists, False, None))
                 self.lists.append(astra.change_data)
                 astra.reset()
 

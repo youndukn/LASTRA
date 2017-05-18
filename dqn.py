@@ -159,7 +159,6 @@
 import numpy as np
 import tensorflow as tf
 import prettytensor as pt
-import scipy.ndimage
 import sys
 import os
 import time
@@ -393,7 +392,7 @@ state_width = 20
 state_img_size = np.array([state_height, state_width])
 
 # Number of images in the state.
-state_channels = 2
+state_channels = 3
 
 # Shape of the state-array.
 state_shape = [state_height, state_width, state_channels]
@@ -424,9 +423,6 @@ def _pre_process_image(image):
 
     # Convert image to gray-scale.
     img = _rgb_to_grayscale(image)
-
-    # Resize to the desired size using SciPy for convenience.
-    img = scipy.misc.imresize(img, size=state_img_size, interp='bicubic')
 
     return img
 
@@ -1410,7 +1406,7 @@ class Agent:
         """
 
         # Create the game-environment using OpenAI Gym.
-        self.env = gym.make(env_name)
+        self.env = None
 
         # The number of possible actions that the agent may take in every step.
         self.num_actions = self.env.action_space.n
