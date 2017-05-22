@@ -164,6 +164,7 @@ import os
 import time
 import csv
 import argparse
+import pickle
 
 ########################################################################
 # File-paths are global variables for convenience so they don't
@@ -530,7 +531,7 @@ class ReplayMemory:
     is more diverse when sampled over thousands of different states.
     """
 
-    def __init__(self, size, num_actions, discount_factor=0.97):
+    def __init__(self, size, num_actions, discount_factor=0.70):
         """
 
         :param size:
@@ -553,6 +554,9 @@ class ReplayMemory:
 
         # Actions taken for each of the states in the memory.
         self.actions = np.zeros(shape=size, dtype=np.int)
+
+        # Actions taken for each of the states in the memory.
+        self.actions2 = np.zeros(shape=size, dtype=np.int)
 
         # Rewards observed for each of the states in the memory.
         self.rewards = np.zeros(shape=size, dtype=np.float)
@@ -579,7 +583,7 @@ class ReplayMemory:
         self.num_used = 0
 
         # Threshold for splitting between low and high estimation errors.
-        self.error_threshold = 0.1
+        self.error_threshold = 0.03
 
     def is_full(self):
         """Return boolean whether the replay-memory is full."""
@@ -591,9 +595,12 @@ class ReplayMemory:
 
     def reset(self):
         """Reset the replay-memory so it is empty."""
+        a_file = open("replay_memeories", 'ab')
+        pickle.dump(self, a_file)
+        a_file.close()
         self.num_used = 0
 
-    def add(self, state, q_values, action, reward, end_life, end_episode):
+    def add(self, state, q_values, action, action2, reward, end_life, end_episode):
         """
         Add an observed state from the game-environment, along with the
         estimated Q-values, action taken, observed reward, etc.
@@ -627,6 +634,7 @@ class ReplayMemory:
             self.states[k] = state
             self.q_values[k] = q_values
             self.actions[k] = action
+            self.actions2[k] = action2
             self.end_life[k] = end_life
             self.end_episode[k] = end_episode
 
@@ -742,15 +750,21 @@ class ReplayMemory:
 
         # Random index of states and Q-values in the replay-memory.
         # These have LOW estimation errors for the Q-values.
-        idx_lo = np.random.choice(self.idx_err_lo,
+        if len(self.idx_err_lo) > 0:
+            idx_lo = np.random.choice(self.idx_err_lo,
                                   size=self.num_samples_err_lo,
                                   replace=False)
+        else:
+            idx_lo = []
 
         # Random index of states and Q-values in the replay-memory.
         # These have HIGH estimation errors for the Q-values.
-        idx_hi = np.random.choice(self.idx_err_hi,
+        if len(self.idx_err_hi) > 0:
+            idx_hi = np.random.choice(self.idx_err_hi,
                                   size=self.num_samples_err_hi,
                                   replace=False)
+        else:
+            idx_hi = []
 
         # Combine the indices.
         idx = np.concatenate((idx_lo, idx_hi))

@@ -167,15 +167,9 @@ class AstraOutputReader:
             return None, None, False
 
         if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:
-            for key in self.blocks[AstraOutputReader.error_block].dictionary.keys():
-                print(self.blocks[AstraOutputReader.error_block].dictionary[key])
-                break
             return None, None, False
 
         if len(self.blocks[AstraOutputReader.warn_block].dictionary) > 0:
-            for key in self.blocks[AstraOutputReader.warn_block].dictionary.keys():
-                print(self.blocks[AstraOutputReader.warn_block].dictionary[key])
-                break
             return self.get_input_parameters(), self.get_output_parameters(), False
 
         return self.get_input_parameters(), self.get_output_parameters(), True
@@ -221,6 +215,14 @@ class AstraOutputReader:
         for a_list in self.blocks[AstraOutputReader.sum_block].lists:
             for values in a_list:
                 if len(values) > 0:
+
+                    for index, value in enumerate(values):
+                        try:
+                            float(value)
+                            values[index]
+                        except ValueError:
+                            values[index] = 0
+
                     temp_list.append(values[0:14])
 
         a = np.array(temp_list, dtype=np.float64)

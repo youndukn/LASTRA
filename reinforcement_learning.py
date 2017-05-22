@@ -109,7 +109,7 @@ class ReinforcementLearning():
             # Each pixel is 1 byte, so this replay-memory needs more than
             # 3 GB RAM (105 x 80 x 2 x 200000 bytes).
 
-            self.replay_memory = ReplayMemory(size=10000,
+            self.replay_memory = ReplayMemory(size=1000,
                                               num_actions=self.num_actions)
         else:
             self.replay_memory = None
@@ -195,22 +195,19 @@ class ReinforcementLearning():
 
             if changed and info:
 
-                if len(astra.change_data) > 100:
+                if len(astra.change_data) > 50:
                     astra.change_data.append(AstraTrainSet(core, points, lists, True, None))
                     out_queue.put(astra.change_data)
                     astra.reset()
                 else:
                     astra.change_data.append(AstraTrainSet(core, points, lists, False, None))
                 self.cal_numb += 1
-                print(lists)
 
             if changed and not info:
-                print(lists)
                 if lists:
                     astra.change_data.append(AstraTrainSet(core, points, lists, True, None))
                     out_queue.put(astra.change_data)
                 astra.reset()
-
             queue.task_done()
 
     def learning(self, queue, out_queue):
@@ -249,22 +246,31 @@ class ReinforcementLearning():
                         pre_reward = train_set.reward
                         done = False
 
+                    print(train_set.reward, " ", total_reward)
+
                     if train_set.done:
                         pre_reward = None
                         count_episodes = self.model.increase_count_episodes()
+                        print("")
 
                     state = train_set.state
                     q_values = self.model.get_q_values(states=[train_set.state])[0]
                     if i < len(lists) - 1:
                         first_move = lists[i + 1].output[0]
                     else:
-                        first_move = 0
+                        first_move = -1
+
+                    if i < len(lists) - 1:
+                        second_move = lists[i + 1].output[1]
+                    else:
+                        second_move = -1
 
                     count_states = self.model.increase_count_states()
 
                     self.replay_memory.add(state=state,
                                            q_values=q_values,
                                            action=first_move,
+                                           action2=second_move,
                                            reward=total_reward,
                                            end_life=done,
                                            end_episode=done)
