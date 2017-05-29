@@ -600,6 +600,17 @@ class ReplayMemory:
         a_file.close()
         self.num_used = 0
 
+    @staticmethod
+    def load_replay_memories():
+        """Reset the replay-memory so it is empty."""
+        try:
+            a_file = open("replay_memeories", 'rb')
+            memories = pickle.load(a_file)
+            a_file.close()
+            return memories
+        except:
+            return None
+
     def add(self, state, q_values, action, action2, reward, end_life, end_episode):
         """
         Add an observed state from the game-environment, along with the
@@ -750,21 +761,14 @@ class ReplayMemory:
 
         # Random index of states and Q-values in the replay-memory.
         # These have LOW estimation errors for the Q-values.
-        if len(self.idx_err_lo) > 0:
-            idx_lo = np.random.choice(self.idx_err_lo,
-                                  size=self.num_samples_err_lo,
-                                  replace=False)
-        else:
-            idx_lo = []
+        idx_lo = np.random.choice(self.idx_err_lo,
+                                  size=self.num_samples_err_lo)
 
         # Random index of states and Q-values in the replay-memory.
         # These have HIGH estimation errors for the Q-values.
-        if len(self.idx_err_hi) > 0:
-            idx_hi = np.random.choice(self.idx_err_hi,
-                                  size=self.num_samples_err_hi,
-                                  replace=False)
-        else:
-            idx_hi = []
+        idx_hi = np.random.choice(self.idx_err_hi,
+                                  size=self.num_samples_err_hi)
+
 
         # Combine the indices.
         idx = np.concatenate((idx_lo, idx_hi))
@@ -1114,14 +1118,16 @@ class NeuralNetwork:
         # Create the convolutional Neural Network using Pretty Tensor.
         with pt.defaults_scope(activation_fn=tf.nn.relu):
             self.q_values = x_pretty. \
-                conv2d(kernel=3, depth=16, stride=2, name='layer_conv1', weights=init). \
-                conv2d(kernel=3, depth=32, stride=2, name='layer_conv2', weights=init). \
-                conv2d(kernel=3, depth=64, stride=1, name='layer_conv3', weights=init). \
+                conv2d(kernel=2, depth=16, stride=2, name='layer_conv1', weights=init). \
+                conv2d(kernel=2, depth=32, stride=2, name='layer_conv2', weights=init). \
+                conv2d(kernel=2, depth=64, stride=2, name='layer_conv3', weights=init). \
+                conv2d(kernel=2, depth=128, stride=2, name='layer_conv3', weights=init). \
+                conv2d(kernel=2, depth=256, stride=1, name='layer_conv3', weights=init). \
                 flatten(). \
-                fully_connected(size=1024, name='layer_fc1', weights=init). \
-                fully_connected(size=1024, name='layer_fc2', weights=init). \
-                fully_connected(size=1024, name='layer_fc3', weights=init). \
-                fully_connected(size=1024, name='layer_fc4', weights=init). \
+                fully_connected(size=4000, name='layer_fc1', weights=init). \
+                fully_connected(size=4000, name='layer_fc2', weights=init). \
+                fully_connected(size=4000, name='layer_fc3', weights=init). \
+                fully_connected(size=4000, name='layer_fc4', weights=init). \
                 fully_connected(size=num_actions, name='layer_fc_out', weights=init,
                                 activation_fn=None)
 

@@ -25,11 +25,6 @@ class InitialChecker():
 
         #Read output from running the initial input
         reading_out = AstraOutputReader(output_string=output_string)
-        reading_out.parse_block_contents()
-
-        # Set learning input parameter from output and save it as core in reader
-        core = reading_out.get_input_parameters()
-        self.input_reader.process_node_burnup_core(core)
 
         #Set default Starting Paramter
         core, lists, successful = reading_out.process_astra()

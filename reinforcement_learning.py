@@ -4,6 +4,7 @@ from queue import Queue
 import copy
 import os
 from threading import Thread
+import matplotlib.pyplot as plt
 
 from data.astra_train_set import AstraTrainSet
 import time
@@ -13,7 +14,7 @@ from dqn import LogQValues, LogReward, EpsilonGreedy, LinearControlSignal, Repla
 class ReinforcementLearning():
     learning_rate = 1e-3
     goal_steps = 200
-    initial_games = 10000
+    initial_games = 12000
     score_requirement = 0
     gamma = 0.95
 
@@ -35,6 +36,9 @@ class ReinforcementLearning():
 
         # The number of possible actions that the agent may take in every step.
         self.num_actions = int(self.astra.max_position * self.astra.n_move)
+
+        # The number of possible actions that the agent may take in shuffle step
+        self.num_actions_2 = int(self.astra.max_position)
 
         # Whether we are training (True) or testing (False).
         self.training = training
@@ -59,12 +63,21 @@ class ReinforcementLearning():
                                             num_actions=self.num_actions,
                                             epsilon_testing=0.01)
 
+        # Epsilon-greedy policy for selecting an action from the Q-values.
+        # During training the epsilon is decreased linearly over the given
+        # number of iterations. During testing the fixed epsilon is used.
+        self.epsilon_greedy_2 = EpsilonGreedy(start_value=0.1,
+                                            end_value=0.01,
+                                            num_iterations=1e6,
+                                            num_actions=self.num_actions_2,
+                                            epsilon_testing=0.01)
+
         if self.training:
             # The following control-signals are only used during training.
 
             # The learning-rate for the optimizer decreases linearly.
-            self.learning_rate_control = LinearControlSignal(start_value=1e-3,
-                                                             end_value=1e-5,
+            self.learning_rate_control = LinearControlSignal(start_value=1e-1,
+                                                             end_value=1e-2,
                                                              num_iterations=5e6)
 
             # The loss-limit is used to abort the optimization whenever the
@@ -109,7 +122,7 @@ class ReinforcementLearning():
             # Each pixel is 1 byte, so this replay-memory needs more than
             # 3 GB RAM (105 x 80 x 2 x 200000 bytes).
 
-            self.replay_memory = ReplayMemory(size=1000,
+            self.replay_memory = ReplayMemory(size=10000,
                                               num_actions=self.num_actions)
         else:
             self.replay_memory = None
@@ -117,6 +130,9 @@ class ReinforcementLearning():
         # Create the Neural Network used for estimating Q-values.
         self.model = NeuralNetwork(num_actions=self.num_actions,
                                    replay_memory=self.replay_memory)
+
+        self.model_2 = NeuralNetwork(num_actions=self.num_actions_2,
+                                     replay_memory=self.replay_memory)
 
         # Log of the rewards obtained in each episode during calls to run()
         self.episode_rewards = []
@@ -162,6 +178,42 @@ class ReinforcementLearning():
         # Now wait for the queue to be empty, indicating that we have
         # processed all of the downloads.)
         print('*** Main thread waiting')
+
+        """
+                while True:
+
+                    time.sleep(10)
+
+                    for i in range(self.replay_memory.num_used):
+
+                        state = self.replay_memory.states[i]
+                        H = np.zeros((10, 10))  # added some commas and array creation code
+
+                        q_values = self.model.get_q_values(states=[state])[0]
+                        counter = 0
+                        for q_i in range(10):
+                            for q_j in range(q_i, 10):
+                                H[q_i, q_j] = q_values[counter]
+                                counter += 1
+
+                        fig = plt.figure(figsize=(6, 3.2))
+
+                        ax = fig.add_subplot(111)
+                        ax.set_title('colorMap')
+                        plt.imshow(H)
+                        ax.set_aspect('equal')
+
+                        cax = fig.add_axes([0.12, 0.1, 0.78, 0.8])
+                        cax.get_xaxis().set_visible(False)
+                        cax.get_yaxis().set_visible(False)
+                        cax.patch.set_alpha(0)
+                        cax.set_frame_on(False)
+                        plt.colorbar(orientation='vertical')
+                        plt.show()
+
+                        if i > 0 and self.replay_memory.end_episode[i]:
+                            break
+        """
         enclosure_queue.join()
         print('*** Done')
 
@@ -219,53 +271,81 @@ class ReinforcementLearning():
                 pre_reward = None
                 lists = out_queue.get()
 
+                cumulative_rewards = 0
+                #pre_state2 = np.zeros([3, 20, 20], dtype=np.int)
+                pre_q_values = np.zeros([self.num_actions], dtype=np.float)
                 for i, train_set in enumerate(lists):
 
                     count_episodes = self.model.get_count_episodes()
 
                     total_reward = 0
-                    if pre_reward:
 
+                    if pre_reward:
+                        all_satisfied = True
                         if train_set.reward:
                             for j in range(len(train_set.reward)):
                                 if j == 0:
+                                    if self.target_rewards[j] > train_set.reward[j]:
+                                        all_satisfied = False
                                     total_reward = total_reward + \
                                                    (max(self.target_rewards[j], pre_reward[j]) - \
                                                     max(self.target_rewards[j], train_set.reward[j])) / \
-                                                   self.target_rewards[j]
+                                                   self.target_rewards[j]*1000
                                 else:
+                                    if self.target_rewards[j] < train_set.reward[j]:
+                                        all_satisfied = False
                                     total_reward = total_reward + \
                                                    (min(self.target_rewards[j], train_set.reward[j]) -
                                                     min(self.target_rewards[j], pre_reward[j])) / \
-                                                   self.target_rewards[j]
-
+                                                   self.target_rewards[j]*1000
+                        if all_satisfied:
+                            print("This one is good")
                         train_set.total_reward = total_reward
                         total_reward = train_set.total_reward
                         done = train_set.done
                     else:
-                        pre_reward = train_set.reward
                         done = False
 
-                    print(train_set.reward, " ", total_reward)
+                    cumulative_rewards += total_reward
 
-                    if train_set.done:
-                        pre_reward = None
-                        count_episodes = self.model.increase_count_episodes()
-                        print("")
+                    pre_reward = train_set.reward
 
                     state = train_set.state
                     q_values = self.model.get_q_values(states=[train_set.state])[0]
+
                     if i < len(lists) - 1:
                         first_move = lists[i + 1].output[0]
                     else:
                         first_move = -1
 
-                    if i < len(lists) - 1:
+                    if i < len(lists) - 1 and lists[i + 1].output[1]:
                         second_move = lists[i + 1].output[1]
                     else:
                         second_move = -1
 
                     count_states = self.model.increase_count_states()
+                    """                   for a_list in train_set.input.get_value_matrix(4):
+                                           print(a_list)
+                   """
+
+                    #print([prettyfloat(n) for n in train_set.reward])
+
+                    #print(np.subtract(pre_state2[0], train_set.state2[0]))
+                    #print(np.subtract(pre_state2[1], train_set.state2[1]))
+                    #print(np.subtract(pre_state2[2], train_set.state2[2]))
+
+                    #pre_state2 = train_set.state2
+                    printable = []
+                    if i != 0:
+                        for q_i, q_value in enumerate(q_values):
+                            if q_value - pre_q_values[q_i] > 0.0001 or q_value - pre_q_values[q_i] < -0.0001:
+                                printable.append(q_i)
+                                printable.append(prettyfloat(q_value - pre_q_values[q_i]))
+
+
+                    print(prettyfloat(cumulative_rewards), prettyfloat(total_reward), first_move / self.num_actions, printable)
+
+                    pre_q_values = q_values
 
                     self.replay_memory.add(state=state,
                                            q_values=q_values,
@@ -277,6 +357,11 @@ class ReinforcementLearning():
 
                     # How much of the replay-memory should be used.
                     use_fraction = self.replay_fraction.get_value(iteration=count_states)
+
+                    if train_set.done:
+                        pre_reward = None
+                        count_episodes = self.model.increase_count_episodes()
+                        print("")
 
                     # When the replay-memory is sufficiently full.
                     if self.replay_memory.is_full() \
@@ -307,8 +392,12 @@ class ReinforcementLearning():
                         # Save a checkpoint of the Neural Network so we can reload it.
                         self.model.save_checkpoint(count_states)
 
-                        # Reset the replay-memory. This throws away all the data we have
+                        # Reset the replay-memory. This throws away all the data we have{
                         # just gathered, so we will have to fill the replay-memory again.
                         self.replay_memory.reset()
 
+class prettyfloat(float):
+
+    def __repr__(self):
+        return "%0.3e" % self
 

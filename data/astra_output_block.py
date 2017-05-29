@@ -36,9 +36,15 @@ class AstraOutputCoreBlock(AstraOutputBlock):
         self.cores = []
 
     def finalize(self):
+        if len(self.key_names) > 1:
+            raise IOError("Cannot have more key in core block")
+
+        self.cores = [None] * len(self.dictionary.keys())
+
         for key_in_dic in self.dictionary.keys():
             if "Y/X" in key_in_dic:
-                self.cores.append(self.__get_core_data(self.dictionary[key_in_dic]))
+                number = key_in_dic[key_in_dic.find("(")+1:key_in_dic.find(")")]
+                self.cores[int(number)-1] = self.__get_core_data(self.dictionary[key_in_dic])
 
     def __get_core_data(self, value):
 
