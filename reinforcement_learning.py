@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 
 from data.astra_train_set import AstraTrainSet
 import time
-from convolutional import SimpleConvolutional
 from dqn import LogQValues, LogReward, EpsilonGreedy, LinearControlSignal, ReplayMemory, NeuralNetwork
 
 class ReinforcementLearning():
@@ -19,19 +18,18 @@ class ReinforcementLearning():
     gamma = 0.95
 
     def __init__(self, thread_numb, astra, target_rewards,
-                 input_data_name=None, output_data_name=None,
-                 env_name= "hello", training = True, render=False, use_logging=True):
+                 env_name="hello", training=True, use_logging=True):
 
+        # The astra runner to work with
         self.astra = astra
+
+        # The number of Thread to work with
         self.thread_numb = thread_numb
+
+        # The target reward
         self.target_rewards = target_rewards
-        self.initial_rewards = astra.train_set.reward
-        if input_data_name:
-            self.output_array = np.load(input_data_name)
 
-        if output_data_name:
-            self.input_matrix = np.load(output_data_name)
-
+        # The number of calculations
         self.cal_numb = 0
 
         # The number of possible actions that the agent may take in every step.
@@ -76,8 +74,8 @@ class ReinforcementLearning():
             # The following control-signals are only used during training.
 
             # The learning-rate for the optimizer decreases linearly.
-            self.learning_rate_control = LinearControlSignal(start_value=1e-1,
-                                                             end_value=1e-2,
+            self.learning_rate_control = LinearControlSignal(start_value=1e-2,
+                                                             end_value=1e-3,
                                                              num_iterations=5e6)
 
             # The loss-limit is used to abort the optimization whenever the
@@ -121,7 +119,6 @@ class ReinforcementLearning():
             # of the game-environment, and one for the motion-trace).
             # Each pixel is 1 byte, so this replay-memory needs more than
             # 3 GB RAM (105 x 80 x 2 x 200000 bytes).
-
             self.replay_memory = ReplayMemory(size=10000,
                                               num_actions=self.num_actions)
         else:
@@ -139,26 +136,23 @@ class ReinforcementLearning():
 
     def initial_population(self):
 
-        astra = self.astra
-
-        astra.reset()
+        self.astra.reset()
 
         # Set up some global variables
         enclosure_queue = Queue()
-        num_fetch_threads = self.thread_numb
 
         out_queue = Queue()
 
         # Create
-        for i in range(num_fetch_threads):
+        for i in range(self.thread_numb):
 
             # Create queues according to the thread number
-            oct_move = astra.get_oct_move_action()
-            second_move = astra.get_oct_shuffle_space(oct_move) if oct_move % Astra.n_move == astra.shuffle else None
+            oct_move = self.astra.get_oct_move_action()
+            second_move = self.astra.get_oct_shuffle_space(oct_move) if oct_move % Astra.n_move == self.astra.shuffle else None
             enclosure_queue.put([oct_move, second_move])
 
             # Create astra according to the thread number
-            new_astra = copy.deepcopy(astra)
+            new_astra = copy.deepcopy(self.astra)
 
             directory = ".{}{}".format(os.path.sep, i)
             if not os.path.exists(directory):
@@ -171,14 +165,13 @@ class ReinforcementLearning():
             worker.setDaemon(True)
             worker.start()
 
-        worker = Thread(target=self.learning, args=(enclosure_queue, out_queue,))
-        worker.setDaemon(True)
-        worker.start()
+        trainer = Thread(target=self.learning, args=(enclosure_queue, out_queue,))
+        trainer.setDaemon(True)
+        trainer.start()
 
         # Now wait for the queue to be empty, indicating that we have
         # processed all of the downloads.)
         print('*** Main thread waiting')
-
         """
                 while True:
 
@@ -272,8 +265,7 @@ class ReinforcementLearning():
                 lists = out_queue.get()
 
                 cumulative_rewards = 0
-                #pre_state2 = np.zeros([3, 20, 20], dtype=np.int)
-                pre_q_values = np.zeros([self.num_actions], dtype=np.float)
+
                 for i, train_set in enumerate(lists):
 
                     count_episodes = self.model.get_count_episodes()
@@ -310,20 +302,6 @@ class ReinforcementLearning():
 
                     pre_reward = train_set.reward
 
-                    state = train_set.state
-                    q_values = self.model.get_q_values(states=[train_set.state])[0]
-
-                    if i < len(lists) - 1:
-                        first_move = lists[i + 1].output[0]
-                    else:
-                        first_move = -1
-
-                    if i < len(lists) - 1 and lists[i + 1].output[1]:
-                        second_move = lists[i + 1].output[1]
-                    else:
-                        second_move = -1
-
-                    count_states = self.model.increase_count_states()
                     """                   for a_list in train_set.input.get_value_matrix(4):
                                            print(a_list)
                    """
@@ -335,66 +313,68 @@ class ReinforcementLearning():
                     #print(np.subtract(pre_state2[2], train_set.state2[2]))
 
                     #pre_state2 = train_set.state2
-                    printable = []
-                    if i != 0:
-                        for q_i, q_value in enumerate(q_values):
-                            if q_value - pre_q_values[q_i] > 0.0001 or q_value - pre_q_values[q_i] < -0.0001:
-                                printable.append(q_i)
-                                printable.append(prettyfloat(q_value - pre_q_values[q_i]))
+                    if i > 0:
+                        first_move = lists[i].output[0]
 
+                        if lists[i].output[1]:
+                            second_move = lists[i].output[1]
+                        else:
+                            second_move = -1
 
-                    print(prettyfloat(cumulative_rewards), prettyfloat(total_reward), first_move / self.num_actions, printable)
+                        count_states = self.model.increase_count_states()
 
-                    pre_q_values = q_values
+                        q_values = self.model.get_q_values(states=[lists[i-1].state])[0]
 
-                    self.replay_memory.add(state=state,
-                                           q_values=q_values,
-                                           action=first_move,
-                                           action2=second_move,
-                                           reward=total_reward,
-                                           end_life=done,
-                                           end_episode=done)
+                        print(prettyfloat(cumulative_rewards), prettyfloat(total_reward), first_move, q_values[first_move])
 
-                    # How much of the replay-memory should be used.
-                    use_fraction = self.replay_fraction.get_value(iteration=count_states)
+                        self.replay_memory.add(state=lists[i-1].state,
+                                               q_values=q_values,
+                                               action=first_move,
+                                               action2=second_move,
+                                               reward=total_reward,
+                                               end_life=done,
+                                               end_episode=done)
 
-                    if train_set.done:
-                        pre_reward = None
-                        count_episodes = self.model.increase_count_episodes()
-                        print("")
+                        # How much of the replay-memory should be used.
+                        use_fraction = self.replay_fraction.get_value(iteration=count_states)
 
-                    # When the replay-memory is sufficiently full.
-                    if self.replay_memory.is_full() \
-                            or self.replay_memory.used_fraction() > use_fraction:
+                        if train_set.done:
+                            pre_reward = None
+                            count_episodes = self.model.increase_count_episodes()
+                            print("")
 
-                        # Update all Q-values in the replay-memory through a backwards-sweep.
-                        self.replay_memory.update_all_q_values()
+                        # When the replay-memory is sufficiently full.
+                        if self.replay_memory.is_full() \
+                                or self.replay_memory.used_fraction() > use_fraction:
 
-                        # Log statistics for the Q-values to file.
-                        if self.use_logging:
-                            self.log_q_values.write(count_episodes=count_episodes,
-                                                    count_states=count_states,
-                                                    q_values=self.replay_memory.q_values)
+                            # Update all Q-values in the replay-memory through a backwards-sweep.
+                            self.replay_memory.update_all_q_values()
 
-                        # Get the control parameters for optimization of the Neural Network.
-                        # These are changed linearly depending on the state-counter.
-                        learning_rate = self.learning_rate_control.get_value(iteration=count_states)
-                        loss_limit = self.loss_limit_control.get_value(iteration=count_states)
-                        max_epochs = self.max_epochs_control.get_value(iteration=count_states)
+                            # Log statistics for the Q-values to file.
+                            if self.use_logging:
+                                self.log_q_values.write(count_episodes=count_episodes,
+                                                        count_states=count_states,
+                                                        q_values=self.replay_memory.q_values)
 
-                        # Perform an optimization run on the Neural Network so as to
-                        # improve the estimates for the Q-values.
-                        # This will sample random batches from the replay-memory.
-                        self.model.optimize(learning_rate=learning_rate,
-                                            loss_limit=loss_limit,
-                                            max_epochs=max_epochs)
+                            # Get the control parameters for optimization of the Neural Network.
+                            # These are changed linearly depending on the state-counter.
+                            learning_rate = self.learning_rate_control.get_value(iteration=count_states)
+                            loss_limit = self.loss_limit_control.get_value(iteration=count_states)
+                            max_epochs = self.max_epochs_control.get_value(iteration=count_states)
 
-                        # Save a checkpoint of the Neural Network so we can reload it.
-                        self.model.save_checkpoint(count_states)
+                            # Perform an optimization run on the Neural Network so as to
+                            # improve the estimates for the Q-values.
+                            # This will sample random batches from the replay-memory.
+                            self.model.optimize(learning_rate=learning_rate,
+                                                loss_limit=loss_limit,
+                                                max_epochs=max_epochs)
 
-                        # Reset the replay-memory. This throws away all the data we have{
-                        # just gathered, so we will have to fill the replay-memory again.
-                        self.replay_memory.reset()
+                            # Save a checkpoint of the Neural Network so we can reload it.
+                            self.model.save_checkpoint(count_states)
+
+                            # Reset the replay-memory. This throws away all the data we have{
+                            # just gathered, so we will have to fill the replay-memory again.
+                            self.replay_memory.reset()
 
 class prettyfloat(float):
 

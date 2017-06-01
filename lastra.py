@@ -2,6 +2,7 @@ import argparse
 
 from reward_calculator import RewardCalculator
 from astra_io.initial_checker import InitialChecker
+from training import TrainingClass
 from reinforcement_learning import ReinforcementLearning
 from gui.main_window import MainWindow
 import time
@@ -23,8 +24,11 @@ def main(input="test2.job", output="none", thread=13):
     maximum_rewards = cal.max
     #dev = cal.calculate_rate()
 
+    print("Training")
+    #training = TrainingClass(astra, maximum_rewards)
+
     print("Reinforcement")
-    learning = ReinforcementLearning(thread, astra, maximum_rewards, None, None)
+    learning = ReinforcementLearning(thread, astra, maximum_rewards)
     learning.initial_population()
 
     print(args.i)

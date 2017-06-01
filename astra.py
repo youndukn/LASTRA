@@ -11,7 +11,7 @@ from convolutional import Convolutional
 
 class Astra():
 
-    n_move = 6
+    n_move = 10
 
     shuffle = 0
     rotate1 = 1

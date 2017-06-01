@@ -1112,17 +1112,45 @@ class NeuralNetwork:
         # You can experiment with values between 1e-2 and 1e-3.
         init = tf.truncated_normal_initializer(mean=0.0, stddev=2e-2)
 
-        # Wrap the input to the Neural Network in a PrettyTensor object.
-        x_pretty = pt.wrap(self.x)
-
         # Create the convolutional Neural Network using Pretty Tensor.
+        """
         with pt.defaults_scope(activation_fn=tf.nn.relu):
-            self.q_values = x_pretty. \
+            seq = pt.wrap(self.x).sequential()
+            with seq.subdivide(4) as towers1:
+                towers1[0].conv2d(1, 64, name='layer_conv111')
+                towers1[1].conv2d(1, 112, name='layer_conv121').conv2d(3, 224, name='layer_conv122')
+                towers1[2].conv2d(1, 32, name='layer_conv131').conv2d(5, 64, name='layer_conv132')
+            with seq.subdivide(4) as towers2:
+                towers2[0].conv2d(1, 64, name='layer_conv211')
+                towers2[1].conv2d(1, 112, name='layer_conv221').conv2d(3, 224, name='layer_conv222')
+                towers2[2].conv2d(1, 32, name='layer_conv231').conv2d(5, 64, name='layer_conv232')
+            with seq.subdivide(4) as towers3:
+                towers3[0].conv2d(1, 64, name='layer_conv311')
+                towers3[1].conv2d(1, 112, name='layer_conv321').conv2d(3, 224, name='layer_conv322')
+                towers3[2].conv2d(1, 32, name='layer_conv331').conv2d(5, 64, name='layer_conv332')
+            with seq.subdivide(4) as towers4:
+                towers4[0].conv2d(1, 64, name='layer_conv411')
+                towers4[1].conv2d(1, 112, name='layer_conv421').conv2d(3, 224, name='layer_conv422')
+                towers4[2].conv2d(1, 32, name='layer_conv431').conv2d(5, 64, name='layer_conv432')
+            with seq.subdivide(4) as towers5:
+                towers5[0].conv2d(1, 64, name='layer_conv511')
+                towers5[1].conv2d(1, 112, name='layer_conv521').conv2d(3, 224, name='layer_conv522')
+                towers5[2].conv2d(1, 32, name='layer_conv531').conv2d(5, 64, name='layer_conv532')
+
+            seq.flatten()
+            seq.fully_connected(1000, name='layer_fc1')
+            seq.fully_connected(1000, name='layer_fc2')
+            seq.fully_connected(1000, name='layer_fc3')
+            self.q_values = seq.fully_connected(size=num_actions, activation_fn=None, name='layer_fc_out', weights=init)
+"""
+
+        with pt.defaults_scope(activation_fn=tf.nn.relu):
+            self.q_values = pt.wrap(self.x). \
                 conv2d(kernel=2, depth=16, stride=2, name='layer_conv1', weights=init). \
                 conv2d(kernel=2, depth=32, stride=2, name='layer_conv2', weights=init). \
                 conv2d(kernel=2, depth=64, stride=2, name='layer_conv3', weights=init). \
-                conv2d(kernel=2, depth=128, stride=2, name='layer_conv3', weights=init). \
-                conv2d(kernel=2, depth=256, stride=1, name='layer_conv3', weights=init). \
+                conv2d(kernel=2, depth=128, stride=2, name='layer_conv4', weights=init). \
+                conv2d(kernel=2, depth=256, stride=1, name='layer_conv5', weights=init). \
                 flatten(). \
                 fully_connected(size=4000, name='layer_fc1', weights=init). \
                 fully_connected(size=4000, name='layer_fc2', weights=init). \
