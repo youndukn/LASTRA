@@ -604,12 +604,15 @@ class ReplayMemory:
     def load_replay_memories():
         """Reset the replay-memory so it is empty."""
         try:
+            memories = []
             a_file = open("replay_memeories", 'rb')
-            memories = pickle.load(a_file)
+            while True:
+                memories.append(pickle.load(a_file))
             a_file.close()
             return memories
         except:
-            return None
+            a_file.close()
+            return memories
 
     def add(self, state, q_values, action, action2, reward, end_life, end_episode):
         """
@@ -761,14 +764,19 @@ class ReplayMemory:
 
         # Random index of states and Q-values in the replay-memory.
         # These have LOW estimation errors for the Q-values.
-        idx_lo = np.random.choice(self.idx_err_lo,
-                                  size=self.num_samples_err_lo)
+        if self.num_samples_err_lo > 0:
+            idx_lo = np.random.choice(self.idx_err_lo,
+                                      size=self.num_samples_err_lo)
+        else:
+            idx_lo = []
 
         # Random index of states and Q-values in the replay-memory.
         # These have HIGH estimation errors for the Q-values.
-        idx_hi = np.random.choice(self.idx_err_hi,
-                                  size=self.num_samples_err_hi)
-
+        if self.num_samples_err_hi > 0:
+            idx_hi = np.random.choice(self.idx_err_hi,
+                                      size=self.num_samples_err_hi)
+        else:
+            idx_hi = []
 
         # Combine the indices.
         idx = np.concatenate((idx_lo, idx_hi))

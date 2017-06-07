@@ -96,32 +96,33 @@ class TrainingClass():
 
         # Log of the rewards obtained in each episode during calls to run()
         self.episode_rewards = []
-        while True:
 
-            replay_memory = ReplayMemory.load_replay_memories()
-            replay_memory.rewards = np.multiply(replay_memory.rewards, 10)
-            replay_memory.update_all_q_values()
+        self.model = NeuralNetwork(num_actions=self.num_actions,
+                                   replay_memory=None)
 
-            self.model = NeuralNetwork(num_actions=self.num_actions,
-                                       replay_memory=replay_memory)
+        replay_memories = ReplayMemory.load_replay_memories()
+        if replay_memories:
+            for replay_memory in replay_memories:
 
-            count_states = replay_memory.num_used
-            # Log statistics for the Q-values to file.
-            if self.use_logging:
-                self.log_q_values.write(count_episodes=0,
-                                        count_states=count_states,
-                                        q_values=replay_memory.q_values)
+                self.model.replay_memory = replay_memory
 
-            # Get the control parameters for optimization of the Neural Network.
-            # These are changed linearly depending on the state-counter.
-            learning_rate = self.learning_rate_control.get_value(iteration=count_states)
-            loss_limit = self.loss_limit_control.get_value(iteration=count_states)
-            max_epochs = self.max_epochs_control.get_value(iteration=count_states)
+                count_states = replay_memory.num_used
+                # Log statistics for the Q-values to file.
+                if self.use_logging:
+                    self.log_q_values.write(count_episodes=0,
+                                            count_states=count_states,
+                                            q_values=replay_memory.q_values)
 
-            self.model.optimize(learning_rate=learning_rate,
-                                loss_limit=loss_limit,
-                                max_epochs=max_epochs)
+                # Get the control parameters for optimization of the Neural Network.
+                # These are changed linearly depending on the state-counter.
+                learning_rate = self.learning_rate_control.get_value(iteration=count_states)
+                loss_limit = self.loss_limit_control.get_value(iteration=count_states)
+                max_epochs = self.max_epochs_control.get_value(iteration=count_states)
 
-            print(self.model.get_q_values(replay_memory.states[0]))
+                self.model.optimize(learning_rate=learning_rate,
+                                    loss_limit=loss_limit,
+                                    max_epochs=max_epochs)
+
+                print(self.model.get_q_values([replay_memory.states[0],]))
 
 
