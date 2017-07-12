@@ -42,10 +42,10 @@ from tflearn.layers.normalization import local_response_normalization
 from tflearn.layers.merge_ops import merge
 from tflearn.initializations import normal
 
-from data.astra_train_set import AstraTrainSet
+from data.astra_train_set import AstraTrainSet, TrainSet
 from astra_io.initial_checker import InitialChecker
 from astra import Astra
-
+import pickle
 # Fix for TF 0.12
 try:
     writer_summary = tf.summary.FileWriter
@@ -72,7 +72,7 @@ n_threads = 12
 #   Training Parameters
 # =============================
 # Max training steps
-TMAX = 100000
+TMAX = 200000
 # Current training step
 T = 0
 # Consecutive screen frames when performing training
@@ -80,13 +80,13 @@ action_repeat = 3
 # Async gradient update frequency of each learning thread
 I_AsyncUpdate = 5
 # Timestep to reset the target network
-I_target = 2000
+I_target = 4000
 # Learning rate
 learning_rate = 0.001
 # Reward discount rate
 gamma = 0.90
 # Number of timesteps to anneal epsilon
-anneal_epsilon_timesteps = 40000
+anneal_epsilon_timesteps = 80000
 
 # =============================
 #   Utils Parameters
@@ -341,13 +341,127 @@ def inception_v3_3d_init(width, height, frame_count, output=9, model_name='sentn
     inception_5b_output = merge([inception_5b_1_1, inception_5b_3_3, inception_5b_5_5, inception_5b_pool_1_1], axis=4,
                                 mode='concat')
 
-    pool5_7_7 = avg_pool_3d(inception_5b_output, kernel_size=7, strides=1)
+    pool5_7_7 = avg_pool_3d(inception_5b_output, kernel_size=3, strides=1)
     pool5_7_7 = dropout(pool5_7_7, 0.4)
 
     q_values = fully_connected(pool5_7_7, output)
 
     return inputs, q_values
 
+
+def inception_v3_3d_init_kernel(width, height, frame_count, output=9, model_name='sentnet_color.model'):
+    inputs = input_data(shape=[None, width, height, frame_count, 1])
+
+    inception_3a_1_1 = conv_3d(inputs, 64, 1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_3a_3_3_reduce = conv_3d(inputs, 96, 1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_3a_3_3 = conv_3d(inception_3a_3_3_reduce, 128, filter_size=3, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_3a_5_5_reduce = conv_3d(inputs, 16, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_3a_5_5 = conv_3d(inception_3a_5_5_reduce, 32, filter_size=5, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_3a_pool = max_pool_3d(inputs, kernel_size=[1,3,3,1,1], strides=1, )
+    inception_3a_pool_1_1 = conv_3d(inception_3a_pool, 32, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    # merge the inception_3a__
+    inception_3a_output = merge([inception_3a_1_1, inception_3a_3_3, inception_3a_5_5, inception_3a_pool_1_1],
+                                mode='concat', axis=4)
+
+    inception_3b_1_1 = conv_3d(inception_3a_output, 128, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_3b_3_3_reduce = conv_3d(inception_3a_output, 128, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_3b_3_3 = conv_3d(inception_3b_3_3_reduce, 192, filter_size=3, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_3b_5_5_reduce = conv_3d(inception_3a_output, 32, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_3b_5_5 = conv_3d(inception_3b_5_5_reduce, 96, filter_size=5)
+    inception_3b_pool = max_pool_3d(inception_3a_output, kernel_size=[1,3,3,1,1], strides=1)
+    inception_3b_pool_1_1 = conv_3d(inception_3b_pool, 64, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+
+    # merge the inception_3b_*
+    inception_3b_output = merge([inception_3b_1_1, inception_3b_3_3, inception_3b_5_5, inception_3b_pool_1_1],
+                                mode='concat', axis=4)
+
+    pool3_3_3 = max_pool_3d(inception_3b_output, kernel_size=[1,3,3,1,1], strides=2)
+    inception_4a_1_1 = conv_3d(pool3_3_3, 192, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4a_3_3_reduce = conv_3d(pool3_3_3, 96, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4a_3_3 = conv_3d(inception_4a_3_3_reduce, 208, filter_size=3, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4a_5_5_reduce = conv_3d(pool3_3_3, 16, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4a_5_5 = conv_3d(inception_4a_5_5_reduce, 48, filter_size=5, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4a_pool = max_pool_3d(pool3_3_3, kernel_size=[1,3,3,1,1], strides=1)
+    inception_4a_pool_1_1 = conv_3d(inception_4a_pool, 64, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+
+    inception_4a_output = merge([inception_4a_1_1, inception_4a_3_3, inception_4a_5_5, inception_4a_pool_1_1],
+                                mode='concat', axis=4)
+
+    inception_4b_1_1 = conv_3d(inception_4a_output, 160, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4b_3_3_reduce = conv_3d(inception_4a_output, 112, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4b_3_3 = conv_3d(inception_4b_3_3_reduce, 224, filter_size=3, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4b_5_5_reduce = conv_3d(inception_4a_output, 24, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4b_5_5 = conv_3d(inception_4b_5_5_reduce, 64, filter_size=5, activation = 'relu', weights_init = normal(stddev=0.02))
+
+    inception_4b_pool = max_pool_3d(inception_4a_output, kernel_size=[1,3,3,1,1], strides=1)
+    inception_4b_pool_1_1 = conv_3d(inception_4b_pool, 64, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+
+    inception_4b_output = merge([inception_4b_1_1, inception_4b_3_3, inception_4b_5_5, inception_4b_pool_1_1],
+                                mode='concat', axis=4)
+
+    inception_4c_1_1 = conv_3d(inception_4b_output, 128, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4c_3_3_reduce = conv_3d(inception_4b_output, 128, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4c_3_3 = conv_3d(inception_4c_3_3_reduce, 256, filter_size=3, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4c_5_5_reduce = conv_3d(inception_4b_output, 24, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4c_5_5 = conv_3d(inception_4c_5_5_reduce, 64, filter_size=5, activation = 'relu', weights_init = normal(stddev=0.02))
+
+    inception_4c_pool = max_pool_3d(inception_4b_output, kernel_size=[1,3,3,1,1], strides=1)
+    inception_4c_pool_1_1 = conv_3d(inception_4c_pool, 64, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+
+    inception_4c_output = merge([inception_4c_1_1, inception_4c_3_3, inception_4c_5_5, inception_4c_pool_1_1],
+                                mode='concat', axis=4)
+
+    inception_4d_1_1 = conv_3d(inception_4c_output, 112, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4d_3_3_reduce = conv_3d(inception_4c_output, 144, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4d_3_3 = conv_3d(inception_4d_3_3_reduce, 288, filter_size=3, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4d_5_5_reduce = conv_3d(inception_4c_output, 32, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4d_5_5 = conv_3d(inception_4d_5_5_reduce, 64, filter_size=5, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4d_pool = max_pool_3d(inception_4c_output, kernel_size=[1,3,3,1,1], strides=1)
+    inception_4d_pool_1_1 = conv_3d(inception_4d_pool, 64, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+
+    inception_4d_output = merge([inception_4d_1_1, inception_4d_3_3, inception_4d_5_5, inception_4d_pool_1_1],
+                                mode='concat', axis=4)
+
+    inception_4e_1_1 = conv_3d(inception_4d_output, 256, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4e_3_3_reduce = conv_3d(inception_4d_output, 160, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4e_3_3 = conv_3d(inception_4e_3_3_reduce, 320, filter_size=3, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4e_5_5_reduce = conv_3d(inception_4d_output, 32, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4e_5_5 = conv_3d(inception_4e_5_5_reduce, 128, filter_size=5, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_4e_pool = max_pool_3d(inception_4d_output, kernel_size=[1,3,3,1,1], strides=1)
+    inception_4e_pool_1_1 = conv_3d(inception_4e_pool, 128, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+
+    inception_4e_output = merge([inception_4e_1_1, inception_4e_3_3, inception_4e_5_5, inception_4e_pool_1_1], axis=4,
+                                mode='concat')
+
+    pool4_3_3 = max_pool_3d(inception_4e_output, kernel_size=[1,3,3,1,1], strides=2)
+
+    inception_5a_1_1 = conv_3d(pool4_3_3, 256, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5a_3_3_reduce = conv_3d(pool4_3_3, 160, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5a_3_3 = conv_3d(inception_5a_3_3_reduce, 320, filter_size=3, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5a_5_5_reduce = conv_3d(pool4_3_3, 32, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5a_5_5 = conv_3d(inception_5a_5_5_reduce, 128, filter_size=5, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5a_pool = max_pool_3d(pool4_3_3, kernel_size=[1,3,3,1,1], strides=1)
+    inception_5a_pool_1_1 = conv_3d(inception_5a_pool, 128, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+
+    inception_5a_output = merge([inception_5a_1_1, inception_5a_3_3, inception_5a_5_5, inception_5a_pool_1_1], axis=4,
+                                mode='concat')
+
+    inception_5b_1_1 = conv_3d(inception_5a_output, 384, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5b_3_3_reduce = conv_3d(inception_5a_output, 192, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5b_3_3 = conv_3d(inception_5b_3_3_reduce, 384, filter_size=3, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5b_5_5_reduce = conv_3d(inception_5a_output, 48, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5b_5_5 = conv_3d(inception_5b_5_5_reduce, 128, filter_size=5, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5b_pool = max_pool_3d(inception_5a_output, kernel_size=[1,3,3,1,1], strides=1)
+    inception_5b_pool_1_1 = conv_3d(inception_5b_pool, 128, filter_size=1, activation = 'relu', weights_init = normal(stddev=0.02))
+    inception_5b_output = merge([inception_5b_1_1, inception_5b_3_3, inception_5b_5_5, inception_5b_pool_1_1], axis=4,
+                                mode='concat')
+
+    pool5_7_7 = avg_pool_3d(inception_5b_output, kernel_size=[1,3,3,1,1], strides=1)
+    pool5_7_7 = dropout(pool5_7_7, 0.4)
+
+    q_values = fully_connected(pool5_7_7, output)
+
+    return inputs, q_values
 # =============================
 #   ATARI Environment Wrapper
 # =============================
@@ -460,6 +574,8 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
     a_batch = []
     y_batch = []
 
+    file = open('data_{}'.format(thread_id), 'wb')
+
     final_epsilon = sample_final_epsilon()
     initial_epsilon = 1.0
     epsilon = 1.0
@@ -525,9 +641,8 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
             else:
                 y_batch.append(clipped_r_t + gamma * np.max(readout_j1))
 
-            print("| Thread %.2i" % int(thread_id), "| Step", t,
-                  "| Reward: %.4f" % clipped_r_t, " |", info, " |", terminal )
-
+            #print("| Thread %.2i" % int(thread_id), "| Step", t,
+            #      "| Reward: %.4f" % clipped_r_t, " |", info, " |", terminal )
 
             a_batch.append(a_t)
             s_batch.append(s_t)
@@ -553,6 +668,9 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
                     session.run(grad_update, feed_dict={y: y_batch,
                                                         a: a_batch,
                                                         s: s_batch})
+                append_data = TrainSet(s_batch, a_batch, y_batch)
+                pickle.dump(append_data, file)
+
                 # Clear gradients
                 s_batch = []
                 a_batch = []
@@ -576,19 +694,21 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
                       (t/float(anneal_epsilon_timesteps)))
                 break
 
+    file.close()
+
 
 def build_models(num_actions):
     # Create shared deep q network
     #s, q_network = build_dqn(num_actions=num_actions,
     #                         action_repeat=action_repeat)
-    s, q_network = inception_v3_3d_init(20, 20, action_repeat, num_actions)
+    s, q_network = inception_v3_3d_init_kernel(20, 20, action_repeat, num_actions)
     network_params = tf.trainable_variables()
     q_values = q_network
 
     # Create shared target network
     #st, target_q_network = build_dqn(num_actions=num_actions,
     #                                 action_repeat=action_repeat)
-    st, target_q_network = inception_v3_3d_init(20, 20, action_repeat, num_actions)
+    st, target_q_network = inception_v3_3d_init_kernel(20, 20, action_repeat, num_actions)
     target_network_params = tf.trainable_variables()[len(network_params):]
     target_q_values = target_q_network
 

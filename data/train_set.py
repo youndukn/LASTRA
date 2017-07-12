@@ -1,6 +1,6 @@
 class TrainSet():
 
-    def __init__(self, input, output, reward, done, total_reward):
+    def __init__(self, input, output, reward, done=False, total_reward=0.0):
         self.input = input
         self.output = output
         self.reward = reward
