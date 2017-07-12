@@ -4,7 +4,7 @@ from astra_io.astra_output_reader import AstraOutputReader
 from data.astra_train_set import AstraTrainSet
 
 class InitialChecker():
-    def __init__(self, input_name):
+    def __init__(self, input_name, directory = "./"):
         self.input_name = input_name
 
         self.input_reader = AstraInputReader(self.input_name)
@@ -13,6 +13,8 @@ class InitialChecker():
             self.input_reader.parse_block_content(astra_block.block_name)
 
         self.astra = Astra(self.input_reader)
+
+        self.astra.working_directory = directory
 
     def get_proccessed_astra(self):
 

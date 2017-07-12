@@ -16,6 +16,7 @@ class AstraOutputReader:
     warn_block = 6
     enrc_block =7
     cbat_block = 8
+    input_block = 9
 
     def __init__(self, output_name=None, output_string=None):
         """
@@ -36,7 +37,8 @@ class AstraOutputReader:
             AstraOutputBlock("ERROR"),
             AstraOutputBlock("WARN"),
             AstraOutputListBlock("ENRC", ["---"]),
-            AstraOutputListBlock("CBAT", ["---"])
+            AstraOutputListBlock("CBAT", ["---"]),
+            AstraOutputBlock("INPUT")
         ]
 
     def set_output_string(self, output_name=None, output_string=None):
@@ -77,12 +79,17 @@ class AstraOutputReader:
         else:
             block_contents = self.find_block_contents(self.blocks, self.output_string)
 
+        boolean_summary = False
+
         for block_content in block_contents:
             astra_block = None
             for block in self.blocks:
                 if re.match("\s*-" + format(block.block_name) + r'(\s+|:)', block_content):
                     astra_block = block
                     break
+
+            if re.match("\s*-" + format("SUMMARY") + r'(\s+|:)', block_content):
+                boolean_summary = True
 
             # Separator String
             if len(astra_block.key_names) > 0:
@@ -109,7 +116,7 @@ class AstraOutputReader:
         for block in self.blocks:
             block.finalize()
 
-        return
+        return boolean_summary
 
     def find_block_contents(self, blocks, output_string):
         """
@@ -161,9 +168,9 @@ class AstraOutputReader:
 
     def process_astra(self):
 
-        self.parse_block_contents()
+        summary_bool = self.parse_block_contents()
 
-        if len(self.blocks[AstraOutputReader.sum_block].dictionary) == 0:
+        if not summary_bool:
             return None, None, False
 
         if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:

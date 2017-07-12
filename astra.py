@@ -13,6 +13,10 @@ class Astra():
 
     n_move = 10
 
+    n_shuffle = 0
+    n_rotate = 3
+    n_bp = 2
+
     shuffle = 0
     rotate1 = 1
     rotate2 = 2
@@ -45,6 +49,8 @@ class Astra():
         self.train_set = AstraTrainSet(None, None, None, None, None)
         self.change_data = [self.train_set]
 
+        self.target_rewards = (17576, 1174.5, 1.49, 1.15, 1.55, 1.71)
+        self.satisfied = True
 
     def reset(self):
         self.astra_input_reader.blocks[AstraInputReader.shuff_block].core = copy.deepcopy(self.original_core)
@@ -52,7 +58,38 @@ class Astra():
         self.change_data = [self.train_set]
         return
 
+    def step_shuffle(self, shuffle_position, reward_index):
+        m_position1 = int(shuffle_position / self.max_position) * Astra.n_move
+        m_position2 = shuffle_position % self.max_position
+        core, lists, changed, info = self.change(int(m_position1), int(m_position2))
+        reward = self.calculate_reward(lists, reward_index)
+        completed = info
+        if self.satisfied:
+            completed = not self.satisfied
+        return core, reward, changed, completed
+
+    def step_rotate(self, rotate_position, reward_index):
+        m_position1 = int(rotate_position / Astra.n_rotate) + Astra.rotate1 + rotate_position % Astra.n_rotate
+        core, lists, changed, info = self.change(int(m_position1), None)
+        reward = self.calculate_reward(lists, reward_index)
+        completed = info
+        if self.satisfied:
+            completed = not self.satisfied
+        return core, reward, changed, completed
+
+
+    def step_bp(self, bp_position, reward_index):
+        m_position1 = int(bp_position / Astra.n_bp) + Astra.bp_in + bp_position % Astra.n_bp
+        core, lists, changed, info = self.change(int(m_position1), None)
+        reward = self.calculate_reward(lists, reward_index)
+        completed = info
+        if self.satisfied:
+            completed = not self.satisfied
+        return core, reward, changed, completed
+
+
     def change(self,  m_position1, position2):
+        self.satisfied = True
         position1 = int(m_position1 / Astra.n_move)
 
         shuffle_block = self.astra_input_reader.blocks[AstraInputReader.shuff_block]
@@ -79,6 +116,10 @@ class Astra():
 
         return self.run_process_astra(shuffle_block)
 
+    def step(self, m_position1, position2):
+        core, lists, changed, info = self.change(m_position1, position2)
+        return core, self.calculate_reward(lists), info, changed
+
     def run_process_astra(self, shuffle_block=None):
 
         if not shuffle_block:
@@ -88,30 +129,29 @@ class Astra():
 
         if output_string:
 
-            reading_out = AstraOutputReader(output_string=output_string)
-            reading_out.parse_block_contents()
+            self.reading_out = AstraOutputReader(output_string=output_string)
+            self.reading_out.parse_block_contents()
 
-            core, lists, successful = reading_out.process_astra()
+            core, lists, successful = self.reading_out.process_astra()
             return core, lists, True, successful
 
         return None, None, True, False
-
-    def step(self, m_position1, position2):
-        core, lists, changed, info = self.change(m_position1, position2)
-        return core, self.calculate_reward(lists), info, changed
 
     def run_astra(self, shuffle_block):
 
         replaced = self.astra_input_reader.replace_block([shuffle_block])
 
         try:
-            p = subprocess.Popen(['astra'],
+            p = subprocess.Popen(['./astra'],
                                  stdout=subprocess.PIPE,
                                  stdin=subprocess.PIPE,
+                                 stderr=subprocess.PIPE,
                                  shell=True,
                                  cwd=self.working_directory)
-            output = (p.communicate(input=replaced.encode('utf-8'))[0]).decode('utf-8')
-            return output
+            output, err = (p.communicate(input=replaced.encode('utf-8')))
+            if err:
+                print(err)
+            return output.decode('utf-8')
         except subprocess.CalledProcessError:
             print("Error in running astra")
             return None
@@ -145,3 +185,30 @@ class Astra():
                 position.append([row, col])
         return position
 
+    def get_initial_state(self):
+        return self.train_set.state
+
+    def calculate_reward(self, reward, reward_index = [0, 1, 2, 3, 4, 5]):
+        if reward == 0.0 or not reward:
+            self.satisfied = False
+            return 0.0
+
+        init_reward = self.train_set.reward
+        total_reward = 0
+        self.satisfied = True
+
+        for j in reward_index:
+            if j == 0:
+                if self.target_rewards[j] > reward[j]:
+                    self.satisfied = False
+                total_reward += (max(self.target_rewards[j], reward[j]) - max(self.target_rewards[j], init_reward[j]) ) / self.target_rewards[j]
+            else:
+                if self.target_rewards[j] < reward[j]:
+                    self.satisfied = False
+                total_reward += (min(self.target_rewards[j], init_reward[j]) - min(self.target_rewards[j], reward[j])) / self.target_rewards[j]
+
+        if self.satisfied:
+            with open("./Satisfied.txt", "a") as myfile:
+                myfile.write(self.reading_out.blocks[AstraOutputReader.input_block].dictionary)
+
+        return total_reward/len(reward_index)

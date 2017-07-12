@@ -11,24 +11,7 @@ class AstraTrainSet(TrainSet):
     def process_input(self):
         if self.input:
 
-            input_array = np.zeros([20, 20, 3], dtype=np.int)
-
-            nodewise = [self.input.get_value_matrix(0), self.input.get_value_matrix(1), self.input.get_value_matrix(2), self.input.get_value_matrix(3)]
-
-            concentration = self.input.get_value_matrix(4)
-            poison = self.input.get_value_matrix(5)
-
-            for i in range(20):
-                for j in range(20):
-                    j_swap = j % 2
-                    i_swap = i % 2
-                    j_index = int(j / 2)
-                    i_index = int(i / 2)
-                    input_array[i, j, 0] = int(int(nodewise[(2*i_swap) + j_swap][i_index][j_index])/100)
-                    input_array[i, j, 1] = int(int(concentration[i_index][j_index])*100)
-                    input_array[i, j, 2] = int(int(poison[i_index][j_index]) / 100000) * \
-                                           (int(int(poison[i_index][j_index]) / 1000) - \
-                                            int(int(poison[i_index][j_index]) / 100000)*100)
+            input_array = AstraTrainSet.convert_core_to_state(self.input)
 
             input_array2 = np.zeros([3, 20, 20], dtype=np.int)
 
@@ -51,3 +34,27 @@ class AstraTrainSet(TrainSet):
                 return a, b
             return a, None
         return None, None
+
+    @staticmethod
+    def convert_core_to_state(input_core):
+        input_array = np.zeros([20, 20, 3, 1], dtype=np.int)
+
+        nodewise = [input_core.get_value_matrix(0), input_core.get_value_matrix(1), input_core.get_value_matrix(2),
+                    input_core.get_value_matrix(3)]
+
+        concentration = input_core.get_value_matrix(4)
+        poison = input_core.get_value_matrix(5)
+
+        for i in range(20):
+            for j in range(20):
+                j_swap = j % 2
+                i_swap = i % 2
+                j_index = int(j / 2)
+                i_index = int(i / 2)
+                input_array[i, j, 0, 0] = int(int(nodewise[(2 * i_swap) + j_swap][i_index][j_index]) / 100)
+                input_array[i, j, 1, 0] = int(int(concentration[i_index][j_index]) * 100)
+                input_array[i, j, 2, 0] = int(int(poison[i_index][j_index]) / 100000) * \
+                                          (int(int(poison[i_index][j_index]) / 1000) - \
+                                           int(int(poison[i_index][j_index]) / 100000) * 100)
+
+        return input_array
