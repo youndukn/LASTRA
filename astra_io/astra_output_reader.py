@@ -171,12 +171,17 @@ class AstraOutputReader:
         summary_bool = self.parse_block_contents()
 
         if not summary_bool:
+            if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:
+                #print(self.blocks[AstraOutputReader.warn_block].dictionary)
+                return None, None, False
             return None, None, False
 
         if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:
+            #print(self.blocks[AstraOutputReader.warn_block].dictionary)
             return None, None, False
 
         if len(self.blocks[AstraOutputReader.warn_block].dictionary) > 0:
+            #print(self.blocks[AstraOutputReader.warn_block].dictionary)
             return self.get_input_parameters(), self.get_output_parameters(), False
 
         return self.get_input_parameters(), self.get_output_parameters(), True

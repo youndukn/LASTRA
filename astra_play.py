@@ -22,15 +22,14 @@ Links:
 """
 from __future__ import division, print_function, absolute_import
 
-import threading
+import threading, queue
 import random
 import numpy as np
 import time
 from skimage.transform import resize
 from skimage.color import rgb2gray
 from collections import deque
-import os
-from shutil import copyfile
+
 
 import gym
 import tensorflow as tf
@@ -43,9 +42,13 @@ from tflearn.layers.merge_ops import merge
 from tflearn.initializations import normal
 
 from data.astra_train_set import AstraTrainSet, TrainSet
-from astra_io.initial_checker import InitialChecker
 from astra import Astra
 import pickle
+import os
+from shutil import copyfile
+import matplotlib.pyplot as plt
+import numpy
+import copy
 # Fix for TF 0.12
 try:
     writer_summary = tf.summary.FileWriter
@@ -72,7 +75,7 @@ n_threads = 12
 #   Training Parameters
 # =============================
 # Max training steps
-TMAX = 200000
+TMAX = 30000
 # Current training step
 T = 0
 # Consecutive screen frames when performing training
@@ -84,9 +87,9 @@ I_target = 4000
 # Learning rate
 learning_rate = 0.001
 # Reward discount rate
-gamma = 0.90
+gamma = 0.70
 # Number of timesteps to anneal epsilon
-anneal_epsilon_timesteps = 80000
+anneal_epsilon_timesteps = 8000
 
 # =============================
 #   Utils Parameters
@@ -109,7 +112,7 @@ def build_dqn(num_actions, action_repeat):
     """
     Building a DQN.
     """
-    inputs = tf.placeholder(tf.int, [None, 20, 20, action_repeat])
+    inputs = tf.placeholder(tf.float32, [None, 20, 20, action_repeat])
     # Inputs shape: [batch, channel, height, width] need to be changed into
     # shape [batch, height, width, channel]
     net = tflearn.conv_2d(inputs, 32, 4, strides=2, activation='relu')
@@ -118,6 +121,28 @@ def build_dqn(num_actions, action_repeat):
     q_values = tflearn.fully_connected(net, num_actions)
     return inputs, q_values
 
+# =============================
+#   TFLearn Deep Q Network
+# =============================
+def build_dqn_fully(x, y, action_repeat, num_actions):
+    """
+    Building a DQN.
+    """
+    inputs = tf.placeholder(tf.float32, [None, x, y, action_repeat])
+    # Inputs shape: [batch, channel, height, width] need to be changed into
+    # shape [batch, height, width, channel]
+    net = tflearn.fully_connected(inputs, 2000, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*4, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*4, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*4, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.01))
+    q_values = tflearn.fully_connected(net, num_actions)
+    return inputs, q_values
 
 def inception_v3_3d(width, height, frame_count, output=9, model_name='sentnet_color.model'):
     inputs = input_data(shape=[None, width, height, frame_count, 1])
@@ -542,7 +567,7 @@ def sample_final_epsilon():
 
 
 def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
-                         summary_ops, saver):
+                         summary_ops, saver, q):
     """
     Actor-learner thread implementing asynchronous one-step Q-learning, as specified
     in algorithm 1 here: http://arxiv.org/pdf/1602.01783v1.pdf.
@@ -562,17 +587,64 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
     summary_placeholders, assign_ops, summary_op = summary_ops
 
     directory = ".{}{}".format(os.path.sep, thread_id)
+
     if not os.path.exists(directory):
         os.makedirs(directory)
-        copyfile("./astra", directory)
 
-    checker = InitialChecker("test2.job", directory)
-    env = checker.get_proccessed_astra()
+    if not os.path.exists("{}{}astra".format(directory, os.path.sep)):
+        copyfile(".{}astra".format(os.path.sep), "{}{}astra".format(directory, os.path.sep))
+
+    env = Astra("test2.job", working_directory=directory)
 
     # Initialize network gradients
     s_batch = []
     a_batch = []
     y_batch = []
+    r_batch = []
+
+    if os.path.isfile('data_{}.temp'.format(thread_id)):
+        os.remove('data_{}.temp'.format(thread_id))
+
+    if os.path.isfile('./data1/data_{}'.format(thread_id)):
+
+        file_read = open('./data1/data_{}'.format(thread_id), 'rb')
+
+        t_init = 0
+        try:
+            while True:
+
+                train_set = pickle.load(file_read)
+
+                # Clear gradients
+                s_batch_init = train_set.input
+                a_batch_init = train_set.output
+                y_batch_init = train_set.reward
+
+                #for s_init in s_batch_init:
+                #    readout_t = q_values.eval(session=session, feed_dict={s: [s_init]})
+                #    print('data_{}: '.format(thread_id), "min", np.min(readout_t), "max", np.max(readout_t))
+
+                t_init += len(train_set.input)
+
+                #readout_t = q_values.eval(session=session, feed_dict={s: [s_batch_init[1]]})
+                #q.put([thread_id, copy.deepcopy(readout_t[0])])
+
+                # Optionally update online network
+                if s_batch_init:
+                    session.run(grad_update, feed_dict={y: y_batch_init,
+                                                        a: a_batch_init,
+                                                        s: s_batch_init})
+
+            session.run(reset_target_network_params)
+
+        except:
+            file_read.close()
+            pass
+
+        file_read.close()
+
+    if os.path.isfile('data_{}.temp'.format(thread_id)):
+        os.remove('data_{}.temp'.format(thread_id))
 
     file = open('data_{}'.format(thread_id), 'wb')
 
@@ -582,8 +654,10 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
 
     print("Thread " + str(thread_id) + " - Final epsilon: " + str(final_epsilon))
 
-    time.sleep(3*thread_id)
+    time.sleep(thread_id)
+
     t = 0
+
     while T < TMAX:
         # Get initial game observation
         s_t = env.get_initial_state()
@@ -602,23 +676,37 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
             readout_t = q_values.eval(session=session, feed_dict={s: [s_t]})
 
             # Choose next action based on e-greedy policy
-            a_t = np.zeros([num_actions])
+
 
             if random.random() > epsilon:
-                action_index = np.argmax(readout_t)
+                indexes = np.where(readout_t > np.percentile(readout_t, 99))[0]
+                #indexes = np.where(readout_t > np.percentile(readout_t, 95))
+                if len(indexes) == 0:
+                    action_index = np.argmax(readout_t)
+                else:
+                    action_index = random.choice(indexes)
+                #action_index = np.argmax(readout_t)
             else:
                 action_index = random.randrange(num_actions)
-
+            """
+            indexes = np.where(readout_t > np.percentile(readout_t, 80))[0]
+            # indexes = np.where(readout_t > np.percentile(readout_t, 95))
+            if len(indexes) == 0:
+                action_index = np.argmax(readout_t)
+            else:
+                action_index = random.choice(indexes)
+            """
             changed = False
 
             while not changed:
-                a_t[action_index] = 1
-
                 # Gym excecutes action in game environment on behalf of actor-learner
                 s_t1, r_t, changed, info = env.step_shuffle(action_index, [0, 1, 4])
                 s_t1 = AstraTrainSet(s_t1, None, None, not info, r_t).state
 
                 action_index = random.randrange(num_actions)
+
+            a_t = np.zeros([num_actions])
+            a_t[action_index] = 1
 
             terminal = not info
 
@@ -632,17 +720,20 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
                                                   feed_dict={st: [s_t1]}
                                                   )
             else:
-                readout_j1 = [-1]
+                readout_j1 = [0]
                 r_t = -1
 
-            clipped_r_t = np.clip((r_t - r_t_p), -1, 1)
+            clipped_r_t = np.clip((r_t - r_t_p)*1000, -10, 10)
             if terminal:
                 y_batch.append(clipped_r_t)
             else:
                 y_batch.append(clipped_r_t + gamma * np.max(readout_j1))
 
-            #print("| Thread %.2i" % int(thread_id), "| Step", t,
-            #      "| Reward: %.4f" % clipped_r_t, " |", info, " |", terminal )
+            r_batch.append(clipped_r_t)
+            q.put([thread_id, copy.deepcopy(readout_t[0])])
+
+            #print("| Thread {:2d}".format(int(thread_id)), "| Step", t,
+            #      "| Reward: {:4d}".format(int(clipped_r_t)), "| Batch: {:4d}".format(int(y_batch[-1])))
 
             a_batch.append(a_t)
             s_batch.append(s_t)
@@ -668,13 +759,15 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
                     session.run(grad_update, feed_dict={y: y_batch,
                                                         a: a_batch,
                                                         s: s_batch})
-                append_data = TrainSet(s_batch, a_batch, y_batch)
+                append_data = TrainSet(s_batch, a_batch, r_batch, total_reward=y_batch)
                 pickle.dump(append_data, file)
 
                 # Clear gradients
                 s_batch = []
                 a_batch = []
                 y_batch = []
+                r_batch = []
+
 
             # Save model progress
             if t % checkpoint_interval == 0:
@@ -687,9 +780,9 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
                 for i in range(len(stats)):
                     session.run(assign_ops[i],
                                 {summary_placeholders[i]: float(stats[i])})
-                print("| Thread %.2i" % int(thread_id), "| Step", t,
-                      "| Reward: %.4f" % float(ep_reward), " Qmax: %.4f" %
-                      (episode_ave_max_q/float(ep_t)),
+                print("| Thread {:2d}".format(int(thread_id)), "| Step", t,
+                      "| Reward: {:3.4f}".format(float(ep_reward)), " Qmax: {:5.4f}".format(
+                      (episode_ave_max_q/float(ep_t))),
                       " Epsilon: %.5f" % epsilon, " Epsilon progress: %.6f" %
                       (t/float(anneal_epsilon_timesteps)))
                 break
@@ -701,14 +794,14 @@ def build_models(num_actions):
     # Create shared deep q network
     #s, q_network = build_dqn(num_actions=num_actions,
     #                         action_repeat=action_repeat)
-    s, q_network = inception_v3_3d_init_kernel(20, 20, action_repeat, num_actions)
+    s, q_network = build_dqn_fully(20, 20, action_repeat, num_actions)
     network_params = tf.trainable_variables()
     q_values = q_network
 
     # Create shared target network
     #st, target_q_network = build_dqn(num_actions=num_actions,
     #                                 action_repeat=action_repeat)
-    st, target_q_network = inception_v3_3d_init_kernel(20, 20, action_repeat, num_actions)
+    st, target_q_network = build_dqn_fully(20, 20, action_repeat, num_actions)
     target_network_params = tf.trainable_variables()[len(network_params):]
     target_q_values = target_q_network
 
@@ -814,11 +907,14 @@ def train(session, graph_ops, num_actions, saver):
     # Initialize target network weights
     session.run(graph_ops["reset_target_network_params"])
 
+    #queue for ploting
+    q = queue.Queue()
+
     # Start n_threads actor-learner training threads
     actor_learner_threads = \
         [threading.Thread(target=actor_learner_thread,
                           args=(thread_id, None, session,
-                                graph_ops, num_actions, summary_ops, saver))
+                                graph_ops, num_actions, summary_ops, saver, q))
          for thread_id in range(n_threads)]
     for t in actor_learner_threads:
         t.start()
@@ -826,10 +922,40 @@ def train(session, graph_ops, num_actions, saver):
 
     # Show the agents training and write summary statistics
     last_summary_time = 0
+
+    fig, axs = plt.subplots(4, 3,  figsize=(13,10))
+
+    lns = []
+    for thread_id in range(n_threads):
+        x = int(thread_id%4)
+        y = int(thread_id/4)
+
+        lns.append(axs[x, y].plot([],[], 'bo'))
+    plt.show(block=False)
+
     while True:
         #if show_training:
         #    for env in envs:
         #        env.render()
+
+        item = q.get()
+        if item:
+            x = int(item[0] % 4)
+            y = int(item[0] / 4)
+            #ln.set_xdata(range(0, get_num_actions()))
+            #ln.set_ydata(item[1])
+
+            lns[item[0]][0].set_xdata(range(0, get_num_actions()))
+            #indexes = np.where(np.logical_and(item[1] >= np.percentile(item[1], 5), item[1] <= np.percentile(item[1], 95)))
+            #item[1][indexes] = 0
+            array = item[1]
+            lns[item[0]][0].set_ydata(array)
+            #axs[x,y].plot(range(0, get_num_actions()), item[1], block=False)
+            axs[x, y].relim()
+            axs[x, y].autoscale_view(True, True, True)
+            fig.canvas.draw()
+
+
         now = time.time()
         if now - last_summary_time > summary_interval:
             summary_str = session.run(summary_op)
