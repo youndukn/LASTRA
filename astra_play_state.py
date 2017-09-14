@@ -131,15 +131,13 @@ def build_dqn_fully(x, y, action_repeat, num_actions):
     inputs = tf.placeholder(tf.float32, [None, x, y, action_repeat])
     # Inputs shape: [batch, channel, height, width] need to be changed into
     # shape [batch, height, width, channel]
-    net = tflearn.fully_connected(inputs, 2000, activation='relu', weights_init = normal(stddev=0.001))
-    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.001))
-    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.001))
-    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.001))
-    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.001))
-    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.001))
-    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.001))
-    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.001))
-    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.001))
+    net = tflearn.fully_connected(inputs, 2000, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*3, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.01))
+    net = tflearn.fully_connected(net, 2000*2, activation='relu', weights_init = normal(stddev=0.01))
     q_values = tflearn.fully_connected(net, num_actions)
     return inputs, q_values
 
@@ -661,14 +659,14 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
 
         file_read.close()
     """
+    """
     if os.path.isfile('data_{}.temp'.format(thread_id)):
         os.remove('data_{}.temp'.format(thread_id))
     for i in range(0, 10):
-
         if os.path.isfile('./data1/data_{}_{}'.format(thread_id, i)):
 
             file_read = open('./data1/data_{}_{}'.format(thread_id, i), 'rb')
-            print('Processing File ./data1/data_{}_{}'.format(thread_id, i))
+
             t_init = 0
             try:
                 while True:
@@ -680,46 +678,31 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
                     a_batch_init = train_set.output
                     y_batch_init = train_set.total_reward
                     if i == 0:
-                        r_batch_init = np.divide(train_set.reward, [10, ])
+                        r_batch_init = np.divide(train_set.reward, [10,])
                     else:
                         r_batch_init = train_set.reward
 
-                    # for s_init in s_batch_init:
+                    #for s_init in s_batch_init:
                     #    readout_t = q_values.eval(session=session, feed_dict={s: [s_init]})
                     #    print('data_{}: '.format(thread_id), "min", np.min(readout_t), "max", np.max(readout_t))
 
                     t_init += len(train_set.input)
-                    initial_s = s_batch_init[0]
-                    start_index = 1;
 
-                    for i, current_s in enumerate(s_batch_init):
-                        if not (initial_s == current_s).all():
-                            start_index = i
-                            break
-
-                    if len(r_batch_init)>1:
-                        r_batch_init_temp = r_batch_init[start_index:]
-                        a_batch_init_temp = a_batch_init[start_index:]
-                        s_batch_init_temp = s_batch_init[start_index:]
-                    else:
-                        r_batch_init_temp = r_batch_init
-                        a_batch_init_temp = a_batch_init
-                        s_batch_init_temp = s_batch_init
-
-                    # readout_t = q_values.eval(session=session, feed_dict={s: [s_batch_init[1]]})
-                    # q.put([thread_id, copy.deepcopy(readout_t[0])])
+                    #readout_t = q_values.eval(session=session, feed_dict={s: [s_batch_init[1]]})
+                    #q.put([thread_id, copy.deepcopy(readout_t[0])])
 
                     # Optionally update online network
                     if s_batch_init:
-                        session.run(grad_update, feed_dict={y: r_batch_init_temp,
-                                                            a: a_batch_init_temp,
-                                                            s: s_batch_init_temp})
+                        session.run(grad_update, feed_dict={y: r_batch_init,
+                                                            a: a_batch_init,
+                                                            s: s_batch_init})
 
             except:
+                file_read.close()
                 pass
 
             file_read.close()
-
+    """
     if os.path.isfile('data_{}.temp'.format(thread_id)):
         os.remove('data_{}.temp'.format(thread_id))
 
@@ -760,7 +743,7 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
             # Choose next action based on e-greedy policy
             action_index = -1
             if random.random() > epsilon:
-                indexes = np.where(readout_t > np.percentile(readout_t, 90))[0]
+                indexes = np.where(readout_t > np.percentile(readout_t, 99))[0]
                 # indexes = np.where(readout_t > np.percentile(readout_t, 95))
                 if len(indexes) == 0:
                     action_index = np.argmax(readout_t)
@@ -795,6 +778,7 @@ def actor_learner_thread(thread_id, env, session, graph_ops, num_actions,
                 #action_index = np.argmax(readout_t)
             else:
                 action_index = random.randrange(num_actions)
+            action_index = random.randrange(num_actions)
             """
             indexes = np.where(readout_t > np.percentile(readout_t, 80))[0]
             # indexes = np.where(readout_t > np.percentile(readout_t, 95))

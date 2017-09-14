@@ -8,8 +8,17 @@ from data.astra_train_set import AstraTrainSet
 from astra_io.astra_input_reader import AstraInputReader
 from astra_io.astra_output_reader import AstraOutputReader
 import random
+import numpy as np
 from error import InputError
+
 class Astra():
+
+    uniform_dis = 0
+    normal_dis = 1
+    greedy_dis = 2
+    upper_normal_dis = 3
+
+    distribution = upper_normal_dis
 
     n_move = 10
 
@@ -29,9 +38,9 @@ class Astra():
     co_de = 9
 
     def __init__(self, input_name,
-                 reward_list_target = (17576, 1174.5, 1.49, 1.15, 1.55, 1.71),
-                 working_directory = ".{}".format(os.path.sep)):
-
+                 reward_list_target=(17576, 1174.5, 1.49, 1.15, 1.55, 1.71),
+                 working_directory=".{}".format(os.path.sep)):
+        #Input Reader
         self.input_name = input_name
 
         self.__astra_input_reader = AstraInputReader(self.input_name)
@@ -47,8 +56,10 @@ class Astra():
 
         self.__position = self.set_oct_position(max_col)
 
+        #Working Directory
         self.__working_directory = working_directory
 
+        #Input
         output_core, reward_list, _, successful = \
             self.run_process_astra(self.__astra_input_reader.blocks[AstraInputReader.shuff_block])
 
@@ -65,7 +76,20 @@ class Astra():
         self.__reward_list_target = reward_list_target #target_rewards
 
     def reset(self):
-        self.__start_index = random.randint(0, len(self.__input_core_best)-1)
+        best_count = len(self.__input_core_best)
+        if Astra.distribution == Astra.uniform_dis:
+            self.__start_index = random.randint(0, best_count - 1)
+        elif Astra.distribution == Astra.normal_dis:
+            index = np.clip(np.random.normal(0, best_count / 4), -best_count/2, best_count/2)
+            if index<0:
+                index = best_count + index
+            self.__start_index = int(index)
+        elif Astra.distribution == Astra.upper_normal_dis:
+            index = np.random.normal(0, best_count / 4)
+            index = best_count + -1*abs(index)
+            self.__start_index = int(np.clip(index, 0, best_count-1))
+        else:
+            self.__start_index = best_count - 1
         self.__input_core_history = [copy.deepcopy(self.__input_core_best[self.__start_index])]
         self.__train_set_history = [copy.deepcopy(self.__train_set_best[self.__start_index])]
 
@@ -82,29 +106,39 @@ class Astra():
         m_position1 = int(shuffle_position / self.__max_position) * Astra.n_move
         m_position2 = shuffle_position % self.__max_position
         output_core, reward_list, changed, info = self.change(int(m_position1), int(m_position2))
-        reward, best = self.__calculate_reward(reward_list, reward_index)
+        reward, best, satisfied = self.__calculate_reward(reward_list, reward_index)
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
-        return output_core, reward, changed, info
+        return output_core, reward, changed, info, satisfied
+
+    def step_shuffle_full(self, shuffle_position, reward_index):
+        m_position1 = int(shuffle_position / self.__max_position) * Astra.n_move
+        m_position2 = shuffle_position % self.__max_position
+        output_core, reward_list, changed, info = self.change(int(m_position1), int(m_position2))
+        reward, best, satisfied = self.__calculate_reward(reward_list, reward_index)
+        if best:
+            self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
+            self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
+        return output_core, reward, reward_list, changed, info, satisfied
 
     def step_rotate(self, rotate_position, reward_index):
         m_position1 = int(rotate_position / Astra.n_rotate) + Astra.rotate1 + rotate_position % Astra.n_rotate
         output_core, reward_list, changed, info = self.change(int(m_position1), None)
-        reward, best = self.__calculate_reward(reward_list, reward_index)
+        reward, best, satisfied = self.__calculate_reward(reward_list, reward_index)
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
-        return output_core, reward, changed, info
+        return output_core, reward, changed, info, satisfied
 
     def step_bp(self, bp_position, reward_index):
         m_position1 = int(bp_position / Astra.n_bp) + Astra.bp_in + bp_position % Astra.n_bp
         output_core, reward_list, changed, info = self.change(int(m_position1), None)
-        reward, best = self.__calculate_reward(reward_list, reward_index)
+        reward, best, satisfied = self.__calculate_reward(reward_list, reward_index)
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
-        return output_core, reward, changed, info
+        return output_core, reward, changed, info, satisfied
 
     def change(self,  m_position1, position2):
         position1 = int(m_position1 / Astra.n_move)
@@ -131,7 +165,10 @@ class Astra():
             changed = shuffle_block.core.poison(self.__position[position1], False)
 
         if not changed:
-            return None, 0.0, changed, False
+            self.__input_core_history.append(next_core)
+            copy_train_set = copy.deepcopy(self.__train_set_history[-1])
+            self.__train_set_history.append(copy.deepcopy(self.__train_set_history[-1]))
+            return copy_train_set.input, 0.0, changed, True
 
         self.__astra_input_reader.blocks[AstraInputReader.shuff_block] = shuffle_block
 
@@ -200,7 +237,7 @@ class Astra():
 
     def __calculate_reward(self, reward_list, reward_index = [0, 1, 2, 3, 4, 5]):
         if reward_list == 0.0 or not reward_list:
-            return 0.0, False
+            return 0.0, False, False
 
         reward_list_init = self.__train_set_history[0].reward
         reward_list_best= self.__train_set_best[-1].reward
@@ -240,11 +277,11 @@ class Astra():
 
         if satisfied:
             with open("./Satisfied.txt", "a") as myfile:
-                print(self.__reading_out.blocks[AstraOutputReader.input_block].dictionary);
+                print("Satisfied")
                 for key in self.__reading_out.blocks[AstraOutputReader.input_block].dictionary:
                     myfile.write(self.__reading_out.blocks[AstraOutputReader.input_block].dictionary[key])
 
-        return total_reward/len(reward_index), best
+        return total_reward/len(reward_index), best, satisfied
 
 
     @staticmethod
