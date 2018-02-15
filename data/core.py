@@ -11,6 +11,7 @@ class Core:
         self.assemblies = [[Assembly() for x in range(self.max_col)] for y in range(self.max_row)]
         self.batches = []
 
+
     def set_batches(self, batches):
         """
         Set deep copcy of batch types and sort them

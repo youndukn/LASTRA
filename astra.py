@@ -5,11 +5,14 @@ import subprocess
 import copy
 import os
 from data.astra_train_set import AstraTrainSet
+from data.cross_power_set import CrossPowerSet
 from astra_io.astra_input_reader import AstraInputReader
 from astra_io.astra_output_reader import AstraOutputReader
 import random
 import numpy as np
 from error import InputError
+import pickle
+import time
 
 class Astra():
 
@@ -41,7 +44,11 @@ class Astra():
                  reward_list_target=(17576, 1174.5, 1.49, 1.15, 1.55, 1.71),
                  working_directory=".{}".format(os.path.sep)):
         #Input Reader
+        self.cross_set = None
+
         self.input_name = input_name
+
+        self.file = open(working_directory+os.path.sep+'cross_power', 'wb')
 
         self.__astra_input_reader = AstraInputReader(self.input_name)
 
@@ -192,9 +199,18 @@ class Astra():
         if output_string:
 
             self.__reading_out = AstraOutputReader(output_string=output_string)
-            self.__reading_out.parse_block_contents()
 
             output_core, reward_list, successful = self.__reading_out.process_astra()
+
+            cross_power_density_list, successful = self.__reading_out.process_astra_cross_power()
+            if successful:
+                depletions = []
+                for list in cross_power_density_list:
+                    depletions.append(CrossPowerSet(list[0],list[1], list[2], list[3], list[4], list[5], list[6],list[7]))
+                self.cross_set = depletions
+            else:
+                self.cross_set = None
+
             return output_core, reward_list, True, successful
 
         return None, None, True, False
@@ -202,6 +218,7 @@ class Astra():
     def run_astra(self, shuffle_block):
 
         replaced = self.__astra_input_reader.replace_block([shuffle_block])
+        time.sleep(1)
 
         try:
             p = subprocess.Popen(['astra'],

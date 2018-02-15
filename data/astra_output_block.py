@@ -30,6 +30,24 @@ class AstraOutputBlock(AstraBlock):
         return
 
 
+class AstraOutputValueBlock(AstraOutputBlock):
+    def __init__(self, block_name=None, key_names=None):
+        super(AstraOutputValueBlock, self).__init__(block_name, key_names)
+        self.value_dict = {}
+
+    def finalize(self):
+
+        for my_key in self.key_names:
+            self.value_dict[my_key] = [None] * int(len(self.dictionary.keys())/len(self.key_names))
+
+        for key_in_dic in self.dictionary.keys():
+            for my_key in self.key_names:
+                if my_key in key_in_dic:
+                    number = key_in_dic[key_in_dic.find("(")+1:key_in_dic.find(")")]
+                    self.value_dict[my_key][int(number)-1] = self.dictionary[key_in_dic].split()[0]
+
+        return
+
 class AstraOutputCoreBlock(AstraOutputBlock):
     def __init__(self, block_name=None, key_names=None):
         super(AstraOutputCoreBlock, self).__init__(block_name, key_names)
@@ -56,6 +74,21 @@ class AstraOutputCoreBlock(AstraOutputBlock):
 
         for line in str.splitlines(value):
             splitted = line.split()
+            splitted_final = []
+            for the_string in splitted:
+                temp_string = the_string
+
+                while len(temp_string) > 7:
+
+                    splitted_string = temp_string[1:8]
+                    splitted_final.append(splitted_string)
+                    temp_string = temp_string[8:]
+
+                if len(temp_string) <= 7 and len(temp_string) >= 1:
+                    splitted_final.append(temp_string)
+
+            splitted =splitted_final
+
             length = len(splitted)
             if value_row == 0:
                 col_len = length

@@ -3,14 +3,13 @@
 2. EDT_OPT to change to renovate
 """
 
-import re
-
 from data.astra_block import AstraBatchBlock, AstraShuffleBlock, AstraJobBlock
 from error import InputError
 import copy
+import re
+
 
 class AstraInputReader:
-
     shuff_block = 0
     batch_block = 1
     job_block = 2
@@ -54,7 +53,7 @@ class AstraInputReader:
         :param block_name: name to
         :return:astra_block with finalized data
         """
-        #get c
+        # get c
         block_content = self.get_block_content(block_name)
 
         astra_block = self.find_astra_block(block_name)
@@ -153,8 +152,7 @@ class AstraInputReader:
                 values = core.assemblies[i][j].get_values()
                 for value in values:
                     assembly.add_value(copy.copy(value))
-                    #assembly.set_batch(batch)
-
+                    # assembly.set_batch(batch)
 
     @staticmethod
     def find_block(data, astra_block):

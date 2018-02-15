@@ -51,7 +51,7 @@
 /
 %EXE_DEP
         SEARCH_PARA    = boron
-         DEPL_TIME_MWD  =  150      #  2 :    50 MWD/MTU
+        DEPL_TIME_MWD  =  150      #  2 :    50 MWD/MTU
 /
 %EXE_DEP
         SEARCH_PARA    = boron
