@@ -8,7 +8,7 @@ from skimage.transform import resize
 from skimage.color import rgb2gray
 from collections import deque
 
-
+import glob
 import gym
 
 from data.astra_train_set import AstraTrainSet, TrainSet
@@ -38,7 +38,7 @@ n_threads = 7
 #   Training Parameters
 # =============================
 # Max training steps
-TMAX = 10000000
+TMAX = 1000
 # Current training step
 T = 0
 # Consecutive screen frames when performing training
@@ -83,28 +83,24 @@ def sample_final_epsilon():
     return np.random.choice(final_epsilons, 1, p=list(probabilities))[0]
 
 
-def actor_learner_thread(thread_id, env, num_actions, saver, q):
+def actor_learner_thread(thread_id, env, num_actions, saver, q, input_directory):
     """
     Actor-learner thread implementing asynchronous one-step Q-learning, as specified
     in algorithm 1 here: http://arxiv.org/pdf/1602.01783v1.pdf.
     """
     global TMAX, T
 
-    directory = ".{}{}".format(os.path.sep, thread_id)
+    directory = "{}{}{}".format(input_directory, os.path.sep, thread_id)
 
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    if not os.path.exists("{}{}astra".format(directory, os.path.sep)):
-        copyfile(".{}astra".format(os.path.sep), "{}{}astra".format(directory, os.path.sep))
-
     #env = Astra("..{}ASTRA{}01_astra_y310_nom_boc.job".format(os.path.sep, os.path.sep), working_directory=directory)
-    env = Astra("..{}ASTRA{}01_astra_y310_nom_boc.job".format(os.path.sep, os.path.sep), working_directory=directory)
+    input_name = glob.glob("{}01_*.inp".format(input_directory))
 
-    if os.path.isfile('data_{}.temp'.format(thread_id)):
-        os.remove('data_{}.temp'.format(thread_id))
+    env = Astra(input_name[0], main_directory = input_directory, working_directory=directory)
 
-    file = open('data_{}'.format(thread_id), 'wb')
+    file = open('/media/youndukn/lastra/plants_data_1/{}_data_{}'.format(input_name[0].replace(input_directory, ""), thread_id), 'wb')
 
     final_epsilon = sample_final_epsilon()
     initial_epsilon = 0.3
@@ -122,6 +118,8 @@ def actor_learner_thread(thread_id, env, num_actions, saver, q):
 
     t = 0
 
+    resuable = {}
+
     satisfied_data = open('satisfied_numb.txt', 'w')
     t_run = 0
     is_checkable = False
@@ -135,17 +133,23 @@ def actor_learner_thread(thread_id, env, num_actions, saver, q):
 
         while True:
 
-            posibilities = random.randrange(1)
-            if posibilities == 0:
-                action_index = random.randrange(num_actions*num_actions)
+            posibilities = random.randrange(num_actions+3+2)
+            position = random.randrange(num_actions)
+            if posibilities < num_actions:
+                action_index = (position*num_actions)+posibilities
                 s_t1, r_t, changed, info, satisfied = env.step_shuffle(action_index, [0, 1, 4])
-            elif posibilities >= 1 and posibilities < 4:
-                action_index = random.randrange(num_actions*Astra.n_rotate+posibilities-1)
+            elif posibilities >= num_actions and posibilities < num_actions+3:
+                action_index = (position * 3) + (posibilities-num_actions)
                 s_t1, r_t, changed, info, satisfied = env.step_rotate(action_index, [0, 1, 4])
-            elif posibilities >= 4 and posibilities < 6:
-                action_index = random.randrange(num_actions * Astra.n_bp + posibilities - 4)
+            elif posibilities >= num_actions+3 and posibilities < num_actions+5:
+                action_index = (position*2) + (posibilities-num_actions-3)
                 s_t1, r_t, changed, info, satisfied = env.step_bp(action_index, [0, 1, 4])
+            """
+            glob_action = random.randrange(num_actions*(num_actions+3+2))
 
+            numb = int(glob_action/(num_actions+3+2))
+            posibilities = glob_action%(num_actions+3+2)
+            """
             satisfied_data.write("{}".format(T))
             s_t1 = AstraTrainSet(s_t1, None, None, not info, r_t).state
 
@@ -159,8 +163,6 @@ def actor_learner_thread(thread_id, env, num_actions, saver, q):
             #y_batch.append(clipped_r_t)
             if changed and not terminal:
                 is_checkable = True
-
-
                 if env.cross_set:
                     r_batch.append(env.cross_set)
 
@@ -173,9 +175,9 @@ def actor_learner_thread(thread_id, env, num_actions, saver, q):
             # Update the state and counters
             s_t = s_t1
             r_t_p = r_t
-            T += 1
             t += 1
             if changed:
+                T += 1
                 t_run += 1
             ep_t += 1
             ep_reward += r_t
@@ -191,10 +193,18 @@ def actor_learner_thread(thread_id, env, num_actions, saver, q):
                     for values in r_batch:
                         dump_list = []
 
-                        for value in values:
-                            dump_list.append
-                            ([value.summary_tensor, value.input_tensor_full, value.output_tensor, value.flux_tensor, value.density_tensor_full])
-                        pickle.dump(dump_list, file, protocol=pickle.HIGHEST_PROTOCOL)
+                        first_step = values[0]
+                        state = first_step.input_tensor_full
+                        key = hash(state.tostring())
+
+                        if not (key in resuable):
+                            for value in values:
+                                a_list = [value.summary_tensor, value.input_tensor_full, value.output_tensor, value.flux_tensor, value.density_tensor_full]
+                                dump_list.append(a_list)
+                            pickle.dump(dump_list, file, protocol=pickle.HIGHEST_PROTOCOL)
+                            dictionary[key] = 1
+                        else:
+                            dictionary[key] += 1
 
 
                 is_checkable = False
@@ -237,17 +247,50 @@ def train(num_actions):
 
     q = queue.Queue()
 
-    # Start n_threads actor-learner training threads
-    actor_learner_threads = \
-        [Process(target=actor_learner_thread,
-                          args=(thread_id, None, num_actions, None, q))
-         for thread_id in range(n_threads)]
-    for t in actor_learner_threads:
-        t.start()
-        time.sleep(0.01)
+    main_directory = "/home/youndukn/Plants/1.4.0/"
+    directories = ["ucn4", "ygn3"]
+    """
+    for subDirectory in ['c{0:02}'.format(x) for x in range(5, 6)]:
 
-    for t in actor_learner_threads:
-        t.join()
+        the_directory = "{}{}{}{}{}depl{}".format(main_directory,
+                                              "ucn4",
+                                              os.path.sep,
+                                              subDirectory,
+                                              os.path.sep,
+                                              os.path.sep)
+
+        # Start n_threads actor-learner training threads
+        actor_learner_threads = \
+            [Process(target=actor_learner_thread,
+                     args=(thread_id, None, num_actions, None, q, the_directory))
+             for thread_id in range(n_threads)]
+        for t in actor_learner_threads:
+            t.start()
+            time.sleep(0.01)
+
+        for t in actor_learner_threads:
+            t.join()
+    """
+    for subDirectory in ['c{0:02}'.format(x) for x in range(5, 16)]:
+
+        the_directory = "{}{}{}{}{}depl{}".format(main_directory,
+                                              "ygn3",
+                                              os.path.sep,
+                                              subDirectory,
+                                              os.path.sep,
+                                              os.path.sep)
+
+        # Start n_threads actor-learner training threads
+        actor_learner_threads = \
+            [Process(target=actor_learner_thread,
+                     args=(thread_id, None, num_actions, None, q, the_directory))
+             for thread_id in range(n_threads)]
+        for t in actor_learner_threads:
+            t.start()
+            time.sleep(0.01)
+
+        for t in actor_learner_threads:
+            t.join()
 
 
 def main(_):
