@@ -20,7 +20,9 @@ from collections import deque
 # and action (two-input model) and determines the corresponding value
 class ActorCritic:
     def __init__(self, env, sess):
+
         self.env = env
+        self.envs = []
         self.sess = sess
 
         self.learning_rate = 0.001
@@ -81,7 +83,7 @@ class ActorCritic:
         model.compile(loss="mse", optimizer=adam)
         """
 
-        return train_depletion.ResNetI7_Actor(self.env.observation_space.shape, self.env.action_space.shape)
+        return train_depletion.ResNetI7_Actor(self.env.observation_space.shape, self.env.action_space.shape[0])
         #return state_input, model
 
     def create_critic_model(self):
@@ -176,7 +178,7 @@ class ActorCritic:
     def act(self, cur_state):
         self.epsilon *= self.epsilon_decay
         if np.random.random() < self.epsilon:
-            return self.env.action_space.sample()
+                return self.env.action_space.sample()
         return self.actor_model.predict(cur_state)
 
 

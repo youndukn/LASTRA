@@ -7,6 +7,7 @@ import time
 from skimage.transform import resize
 from skimage.color import rgb2gray
 from collections import deque
+import keras.backend as K
 
 import glob
 import gym
@@ -20,7 +21,7 @@ import copy
 import tensorflow as tf
 import keras
 from multiprocessing import Process
-
+import enviroments
 
 # Fix for TF 0.12
 
@@ -83,7 +84,7 @@ def sample_final_epsilon():
     return np.random.choice(final_epsilons, 1, p=list(probabilities))[0]
 
 
-def actor_learner_thread(thread_id, env, num_actions, saver, q, input_directory):
+def actor_learner_thread(actor_critic, thread_id, env, num_actions, saver, q, input_directory):
     """
     Actor-learner thread implementing asynchronous one-step Q-learning, as specified
     in algorithm 1 here: http://arxiv.org/pdf/1602.01783v1.pdf.
@@ -244,8 +245,11 @@ def train(num_actions):
     Train a model.
     """
 
-
     q = queue.Queue()
+    sess = tf.Session()
+    K.set_session(sess)
+    env = enviroments.Enviroment()
+    actor_critic = ActorCritic(env, sess)
 
     main_directory = "/home/youndukn/Plants/1.4.0/"
     directories = ["ucn4", "ygn3"]
@@ -283,7 +287,7 @@ def train(num_actions):
         # Start n_threads actor-learner training threads
         actor_learner_threads = \
             [Process(target=actor_learner_thread,
-                     args=(thread_id, None, num_actions, None, q, the_directory))
+                     args=(actor_critic, thread_id, None, num_actions, None, q, the_directory))
              for thread_id in range(n_threads)]
         for t in actor_learner_threads:
             t.start()
