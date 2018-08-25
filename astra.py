@@ -5,7 +5,7 @@ import subprocess
 import copy
 import os
 from data.astra_train_set import AstraTrainSet
-from data.cross_power_set import CrossPowerSet
+from data.cross_power_set import CrossPowerSet, CrossPowerSet3D
 from astra_io.astra_input_reader import AstraInputReader
 from astra_io.astra_output_reader import AstraOutputReader
 import random
@@ -21,7 +21,7 @@ class Astra():
     greedy_dis = 2
     upper_normal_dis = 3
 
-    distribution = upper_normal_dis
+    distribution = greedy_dis
 
     n_move = 10
 
@@ -42,7 +42,11 @@ class Astra():
 
     def __init__(self, input_name,
                  reward_list_target=(17576, 1174.5, 1.49, 1.15, 1.55, 1.71),
-                 working_directory=".{}".format(os.path.sep)):
+                 main_directory=".{}".format(os.path.sep),
+                 working_directory=".{}".format(os.path.sep),
+                 ):
+        self.action_space = (3300)
+        self.observation_space = (10, 10, 28)
         #Input Reader
         self.cross_set = None
 
@@ -50,7 +54,7 @@ class Astra():
 
         self.file = open(working_directory+os.path.sep+'cross_power', 'wb')
 
-        self.__astra_input_reader = AstraInputReader(self.input_name)
+        self.__astra_input_reader = AstraInputReader(self.input_name, main_directory)
 
         for astra_block in self.__astra_input_reader.blocks:
             self.__astra_input_reader.parse_block_content(astra_block.block_name)
@@ -67,6 +71,9 @@ class Astra():
         self.__working_directory = working_directory
 
         #Input
+        #output_core, reward_list, _, successful = \
+        #    self.run_process_astra_3D(self.__astra_input_reader.blocks[AstraInputReader.shuff_block])
+
         output_core, reward_list, _, successful = \
             self.run_process_astra(self.__astra_input_reader.blocks[AstraInputReader.shuff_block])
 
@@ -75,10 +82,12 @@ class Astra():
 
         self.__input_core_best = [copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block].core)]
         self.__train_set_best = [AstraTrainSet(output_core, None, reward_list, False, None)]
+        self.__crosspower_set_best = [copy.deepcopy(self.cross_set)]
         self.__start_index = 0
 
         self.__input_core_history = [copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block].core)]
         self.__train_set_history = [AstraTrainSet(output_core, None, reward_list, False, None)]
+        self.__crosspower_set_history = [copy.deepcopy(self.cross_set)]
 
         self.__reward_list_target = reward_list_target #target_rewards
 
@@ -99,6 +108,8 @@ class Astra():
             self.__start_index = best_count - 1
         self.__input_core_history = [copy.deepcopy(self.__input_core_best[self.__start_index])]
         self.__train_set_history = [copy.deepcopy(self.__train_set_best[self.__start_index])]
+        self.__crosspower_set_history = [copy.deepcopy(self.__crosspower_set_best[self.__start_index])]
+        self.cross_set = copy.deepcopy(self.__crosspower_set_best[self.__start_index])
 
     def get_oct_shuffle_space(self, space_action):
         return randint(0, self.__max_position-1)
@@ -117,6 +128,7 @@ class Astra():
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
+            self.__crosspower_set_best.append(self.cross_set)
         return output_core, reward, changed, info, satisfied
 
     def step_shuffle_full(self, shuffle_position, reward_index):
@@ -127,6 +139,7 @@ class Astra():
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
+            self.__crosspower_set_best.append(self.cross_set)
         return output_core, reward, reward_list, changed, info, satisfied
 
     def step_rotate(self, rotate_position, reward_index):
@@ -136,6 +149,7 @@ class Astra():
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
+            self.__crosspower_set_best.append(self.cross_set)
         return output_core, reward, changed, info, satisfied
 
     def step_bp(self, bp_position, reward_index):
@@ -145,6 +159,7 @@ class Astra():
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
+            self.__crosspower_set_best.append(self.cross_set)
         return output_core, reward, changed, info, satisfied
 
     def change(self,  m_position1, position2):
@@ -175,13 +190,17 @@ class Astra():
             self.__input_core_history.append(next_core)
             copy_train_set = copy.deepcopy(self.__train_set_history[-1])
             self.__train_set_history.append(copy.deepcopy(self.__train_set_history[-1]))
+            self.__crosspower_set_history.append(copy.deepcopy(self.__crosspower_set_history[-1]))
             return copy_train_set.input, 0.0, changed, True
 
         self.__astra_input_reader.blocks[AstraInputReader.shuff_block] = shuffle_block
 
         self.__input_core_history.append(next_core)
+        #output_core, reward_list, changed, successful = self.run_process_astra_3D(shuffle_block)
         output_core, reward_list, changed, successful = self.run_process_astra(shuffle_block)
+
         self.__train_set_history.append(AstraTrainSet(output_core, None, reward_list, False, None))
+        self.__crosspower_set_history.append(copy.deepcopy(self.cross_set))
 
         return output_core, reward_list, changed, successful
 
@@ -203,10 +222,34 @@ class Astra():
             output_core, reward_list, successful = self.__reading_out.process_astra()
 
             cross_power_density_list, successful = self.__reading_out.process_astra_cross_power()
-            if successful:
+            if cross_power_density_list:
                 depletions = []
                 for list in cross_power_density_list:
                     depletions.append(CrossPowerSet(list[0],list[1], list[2], list[3], list[4], list[5], list[6],list[7]))
+                self.cross_set = depletions
+
+            return output_core, reward_list, True, successful
+
+        return None, None, True, False
+
+    def run_process_astra_3D(self, shuffle_block=None):
+
+        if not shuffle_block:
+            shuffle_block = self.__astra_input_reader.blocks[AstraInputReader.shuff_block]
+
+        output_string = self.run_astra(shuffle_block)
+
+        if output_string:
+
+            self.__reading_out = AstraOutputReader(output_string=output_string)
+
+            output_core, reward_list, successful = self.__reading_out.process_astra()
+
+            cross_power_density_list, successful = self.__reading_out.process_astra_cross_power_3D()
+            if successful:
+                depletions = []
+                for list in cross_power_density_list:
+                    depletions.append(CrossPowerSet3D(list[0],list[1], list[2], list[3], list[4], list[5], list[6],list[7]))
                 self.cross_set = depletions
             else:
                 self.cross_set = None
@@ -221,7 +264,7 @@ class Astra():
         time.sleep(1)
 
         try:
-            p = subprocess.Popen(['astra'],
+            p = subprocess.Popen(['/home/youndukn/bin/astra.1.4.2'],
                                  stdout=subprocess.PIPE,
                                  stdin=subprocess.PIPE,
                                  stderr=subprocess.PIPE,
@@ -286,7 +329,6 @@ class Astra():
         best = False
         if s_c >= len(reward_index):
             best = True
-            print("Best Reward" + str(reward_list) + " " + self.__working_directory)
             with open("./Best.txt", "a") as myfile:
                 for key in self.__reading_out.blocks[AstraOutputReader.input_block].dictionary:
                     myfile.write("Best Reward " + str(reward_list) + self.__working_directory)
