@@ -14,7 +14,7 @@ class AstraInputReader:
     batch_block = 1
     job_block = 2
 
-    def __init__(self, input_name=None):
+    def __init__(self, input_name=None, main_directory=None):
         """
         Define all blocks to be used in blocks
         :param input_name: ASTRA input name, cannot be None
@@ -22,7 +22,7 @@ class AstraInputReader:
 
         self.blocks = [AstraShuffleBlock(),
                        AstraBatchBlock(),
-                       AstraJobBlock()]
+                       AstraJobBlock(main_directory)]
 
         self.input = input_name
         file = open(self.input, "r")

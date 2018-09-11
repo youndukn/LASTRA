@@ -37,7 +37,9 @@ class Space:
 
 class Environment:
     def __init__(self,
+                 action_main_shape = (3300,),
+                 action_sub_shapes = (55, 3, 2),
                  observation_shape = (19, 19, 28)):
 
-        self.action_space = Space((3300,), shapes=[55, 3, 2], high =  100, low = -100)
+        self.action_space = Space(action_main_shape, shapes=action_sub_shapes, high =  100, low = -100)
         self.observation_space = Space(observation_shape)

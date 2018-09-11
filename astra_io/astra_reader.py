@@ -7,7 +7,6 @@ import numpy as np
 class AstraReader:
 
 
-
     def __init__(self, file_name="", file_content=""):
         """
         Define all blocks to be used in blocks

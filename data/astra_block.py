@@ -132,21 +132,22 @@ class AstraSingleBlock(AstraBlock):
 
 class AstraDirectoryBlock(AstraSingleBlock):
 
-    def __init__(self, block_name, key_names, dir_key_names):
+    def __init__(self, block_name, key_names, dir_key_names, main_directory):
         super(AstraDirectoryBlock, self).__init__(block_name, key_names)
         self.directory_keys = dir_key_names
+        self.main_directory = main_directory
 
     def finalize(self):
         for key in self.dictionary.keys():
             value = self.dictionary[key]
             if key in self.directory_keys:
-                self.dictionary[key] = os.path.abspath(value)
+                self.dictionary[key] = os.path.abspath("{}{}".format(self.main_directory, value))
         return
 
 
 class AstraJobBlock(AstraDirectoryBlock):
 
-    def __init__(self):
+    def __init__(self, main_directory):
         keywords_in_order = ("CYCLE",
                              "PLANT",
                              "TABLE_SET",
@@ -154,6 +155,15 @@ class AstraJobBlock(AstraDirectoryBlock):
                              "GEOMETRY_FILE",
                              "RESTART_FILE",
                              "RESTART_STEP",
+                             "GEOMETRY_FILE(1)",
+                             "RESTART_FILE(1)",
+                             "RESTART_STEP(1)",
+                             "GEOMETRY_FILE(2)",
+                             "RESTART_FILE(2)",
+                             "RESTART_STEP(2)",
+                             "GEOMETRY_FILE(3)",
+                             "RESTART_FILE(3)",
+                             "RESTART_STEP(3)",
                              "DATABASE_FILE",
                              "DATABASE_FUEL",
                              "TITLE")
@@ -166,13 +176,24 @@ class AstraJobBlock(AstraDirectoryBlock):
                                              "FORM_FUNCTION",
                                              "GEOMETRY_FILE",
                                              "RESTART_FILE",
+                                             "GEOMETRY_FILE(1)",
+                                             "RESTART_FILE(1)",
+                                             "GEOMETRY_FILE(2)",
+                                             "RESTART_FILE(2)",
+                                             "GEOMETRY_FILE(3)",
+                                             "RESTART_FILE(3)",
                                              "DATABASE_FILE",)
+                                            ,
+                                            main_directory
                                             )
         self.print_order = keywords_in_order
 
     def print_block(self):
         string = self.delimiter + self.block_name + "\n"
         for key in self.print_order:
-            string += "\t{} = {}\n".format(key, self.dictionary[key])
+            try:
+                string += "\t{} = {}\n".format(key, self.dictionary[key])
+            except:
+                pass
         return string
 

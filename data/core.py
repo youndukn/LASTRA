@@ -47,6 +47,15 @@ class Core:
                         type(self.assemblies[position2[0]][position2[1]]) is Assembly:
             return False
 
+        if position1[0] == position2[0] and position1[1] == position2[1]:
+            return False
+
+        if position1[0] == 0 and position1[1] == 0:
+            return False
+
+        if position2[0] == 0 and position2[1] == 0:
+            return False
+
         sym_posi1 = [position1[1], position1[0]]
         sym_posi2 = [position2[1], position2[0]]
 
@@ -159,6 +168,15 @@ class Core:
                     a_array.append(assembly.get_values()[index])
                 else:
                     a_array.append(0)
+            a_matrix.append(a_array)
+        return a_matrix
+
+    def get_batch_matrix(self):
+        a_matrix = []
+        for row_assemblies in self.assemblies:
+            a_array = []
+            for assembly in row_assemblies:
+                a_array.append(assembly.get_batch())
             a_matrix.append(a_array)
         return a_matrix
 

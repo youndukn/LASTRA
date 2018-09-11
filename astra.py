@@ -21,7 +21,7 @@ class Astra():
     greedy_dis = 2
     upper_normal_dis = 3
 
-    distribution = greedy_dis
+    distribution = uniform_dis
 
     n_move = 10
 
@@ -48,8 +48,6 @@ class Astra():
         self.action_space = (3300)
         self.observation_space = (10, 10, 28)
         #Input Reader
-        self.cross_set = None
-
         self.input_name = input_name
 
         self.file = open(working_directory+os.path.sep+'cross_power', 'wb')
@@ -74,7 +72,7 @@ class Astra():
         #output_core, reward_list, _, successful = \
         #    self.run_process_astra_3D(self.__astra_input_reader.blocks[AstraInputReader.shuff_block])
 
-        output_core, reward_list, _, successful = \
+        output_core, reward_list, _, successful, cross_set = \
             self.run_process_astra(self.__astra_input_reader.blocks[AstraInputReader.shuff_block])
 
         if not successful:
@@ -82,12 +80,12 @@ class Astra():
 
         self.__input_core_best = [copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block].core)]
         self.__train_set_best = [AstraTrainSet(output_core, None, reward_list, False, None)]
-        self.__crosspower_set_best = [copy.deepcopy(self.cross_set)]
+        self.__crosspower_set_best = [cross_set]
         self.__start_index = 0
 
         self.__input_core_history = [copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block].core)]
         self.__train_set_history = [AstraTrainSet(output_core, None, reward_list, False, None)]
-        self.__crosspower_set_history = [copy.deepcopy(self.cross_set)]
+        self.__crosspower_set_history = [cross_set]
 
         self.__reward_list_target = reward_list_target #target_rewards
 
@@ -109,7 +107,6 @@ class Astra():
         self.__input_core_history = [copy.deepcopy(self.__input_core_best[self.__start_index])]
         self.__train_set_history = [copy.deepcopy(self.__train_set_best[self.__start_index])]
         self.__crosspower_set_history = [copy.deepcopy(self.__crosspower_set_best[self.__start_index])]
-        self.cross_set = copy.deepcopy(self.__crosspower_set_best[self.__start_index])
 
     def get_oct_shuffle_space(self, space_action):
         return randint(0, self.__max_position-1)
@@ -123,44 +120,44 @@ class Astra():
     def step_shuffle(self, shuffle_position, reward_index):
         m_position1 = int(shuffle_position / self.__max_position) * Astra.n_move
         m_position2 = shuffle_position % self.__max_position
-        output_core, reward_list, changed, info = self.change(int(m_position1), int(m_position2))
+        output_core, reward_list, changed, info, cross_set = self.change(int(m_position1), int(m_position2))
         reward, best, satisfied = self.__calculate_reward(reward_list, reward_index)
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
-            self.__crosspower_set_best.append(self.cross_set)
-        return output_core, reward, changed, info, satisfied
+            self.__crosspower_set_best.append(cross_set)
+        return output_core, reward, changed, info, satisfied, best, cross_set
 
     def step_shuffle_full(self, shuffle_position, reward_index):
         m_position1 = int(shuffle_position / self.__max_position) * Astra.n_move
         m_position2 = shuffle_position % self.__max_position
-        output_core, reward_list, changed, info = self.change(int(m_position1), int(m_position2))
+        output_core, reward_list, changed, info, cross_set = self.change(int(m_position1), int(m_position2))
         reward, best, satisfied = self.__calculate_reward(reward_list, reward_index)
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
-            self.__crosspower_set_best.append(self.cross_set)
-        return output_core, reward, reward_list, changed, info, satisfied
+            self.__crosspower_set_best.append(cross_set)
+        return output_core, reward, reward_list, changed, info, satisfied, best, cross_set
 
     def step_rotate(self, rotate_position, reward_index):
         m_position1 = int(rotate_position / Astra.n_rotate) + Astra.rotate1 + rotate_position % Astra.n_rotate
-        output_core, reward_list, changed, info = self.change(int(m_position1), None)
+        output_core, reward_list, changed, info, cross_set = self.change(int(m_position1), None)
         reward, best, satisfied = self.__calculate_reward(reward_list, reward_index)
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
-            self.__crosspower_set_best.append(self.cross_set)
-        return output_core, reward, changed, info, satisfied
+            self.__crosspower_set_best.append(cross_set)
+        return output_core, reward, changed, info, satisfied, best, cross_set
 
     def step_bp(self, bp_position, reward_index):
         m_position1 = int(bp_position / Astra.n_bp) + Astra.bp_in + bp_position % Astra.n_bp
-        output_core, reward_list, changed, info = self.change(int(m_position1), None)
+        output_core, reward_list, changed, info, cross_set = self.change(int(m_position1), None)
         reward, best, satisfied = self.__calculate_reward(reward_list, reward_index)
         if best:
             self.__input_core_best.append(copy.deepcopy(self.__astra_input_reader.blocks[AstraInputReader.shuff_block]).core)
             self.__train_set_best.append(AstraTrainSet(output_core, None, reward_list, False, None))
-            self.__crosspower_set_best.append(self.cross_set)
-        return output_core, reward, changed, info, satisfied
+            self.__crosspower_set_best.append(cross_set)
+        return output_core, reward, changed, info, satisfied, best, cross_set
 
     def change(self,  m_position1, position2):
         position1 = int(m_position1 / Astra.n_move)
@@ -191,18 +188,30 @@ class Astra():
             copy_train_set = copy.deepcopy(self.__train_set_history[-1])
             self.__train_set_history.append(copy.deepcopy(self.__train_set_history[-1]))
             self.__crosspower_set_history.append(copy.deepcopy(self.__crosspower_set_history[-1]))
-            return copy_train_set.input, 0.0, changed, True
+            return copy_train_set.input, 0.0, changed, True, []
 
         self.__astra_input_reader.blocks[AstraInputReader.shuff_block] = shuffle_block
 
         self.__input_core_history.append(next_core)
         #output_core, reward_list, changed, successful = self.run_process_astra_3D(shuffle_block)
-        output_core, reward_list, changed, successful = self.run_process_astra(shuffle_block)
+        output_core, reward_list, changed, successful, cross_set = self.run_process_astra(shuffle_block)
 
         self.__train_set_history.append(AstraTrainSet(output_core, None, reward_list, False, None))
-        self.__crosspower_set_history.append(copy.deepcopy(self.cross_set))
+        self.__crosspower_set_history.append(cross_set)
 
-        return output_core, reward_list, changed, successful
+        return output_core, reward_list, changed, successful, cross_set
+
+    def get_cross_set(self):
+        return self.__crosspower_set_history[-1]
+
+    def step_back(self):
+        self.__crosspower_set_history.remove(self.__crosspower_set_history[-1])
+        self.__input_core_history.remove(self.__input_core_history[-1])
+        self.__train_set_history.remove(self.__train_set_history[-1])
+
+
+    def get_last_core(self):
+        return self.__input_core_history[-1]
 
     def step(self, m_position1, position2):
         output_core, reward_list, changed, info = self.change(m_position1, position2)
@@ -222,15 +231,14 @@ class Astra():
             output_core, reward_list, successful = self.__reading_out.process_astra()
 
             cross_power_density_list, successful = self.__reading_out.process_astra_cross_power()
+            depletions = []
             if cross_power_density_list:
-                depletions = []
                 for list in cross_power_density_list:
                     depletions.append(CrossPowerSet(list[0],list[1], list[2], list[3], list[4], list[5], list[6],list[7]))
-                self.cross_set = depletions
 
-            return output_core, reward_list, True, successful
+            return output_core, reward_list, True, successful, depletions
 
-        return None, None, True, False
+        return None, None, True, False, []
 
     def run_process_astra_3D(self, shuffle_block=None):
 
