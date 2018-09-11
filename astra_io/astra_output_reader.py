@@ -321,19 +321,20 @@ class AstraOutputReader:
 
         if not summary_bool:
             if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:
-                #print(self.blocks[AstraOutputReader.warn_block].dictionary)
-                return None, False
-            return None, False
+                print(self.blocks[AstraOutputReader.warn_block].dictionary)
+                return None, False, False
+            return None, False, False
 
         if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:
-            #print(self.blocks[AstraOutputReader.warn_block].dictionary)
-            return None, False
+            value = str(self.blocks[AstraOutputReader.error_block].dictionary)
+            print(value[:100])
+            return None, False, False
 
         if len(self.blocks[AstraOutputReader.warn_block].dictionary) > 0:
             #print(self.blocks[AstraOutputReader.warn_block].dictionary)
-            return self.get_cross_power_density_parameters(), False
+            return self.get_cross_power_density_parameters(), False, True
 
-        return self.get_cross_power_density_parameters(),True
+        return self.get_cross_power_density_parameters(), True, True
 
     def process_astra_cross_power_3D(self):
 

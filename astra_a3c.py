@@ -779,6 +779,9 @@ class Agent(threading.Thread):
             current_output = start_output
             current_output_matrix = start_output_matrix
 
+            pre_cl = current_cl
+            pre_fxy = current_fxy
+
             nonChanged = False
 
             while not done:
@@ -873,173 +876,176 @@ class Agent(threading.Thread):
                     position_matrix[ab55[posibilities][1] - 9][ab55[posibilities][2] - 9] = 1
 
                 action_index = (position * self.spaces.action_space.shapes[0]) + posibilities
-                s_t1, r_t, changed, info, satisfied, best, cross_set = self.env.step_shuffle(action_index, [0, 4])
+                s_t1, r_t, changed, info, succ_error, satisfied, best,cross_set = self.env.step_shuffle(action_index, [0, 4])
 
-                done = not info
-
-                if best:
-                    pre_cl = current_cl
-                    pre_fxy = current_fxy
-
-                pre_output_matrix = current_output_matrix
-
-                current_state, \
-                current_output, \
-                current_cl, \
-                current_fxy, \
-                current_output_matrix = \
-                    self.my_input_output(cross_set)
-
-                next_history = np.reshape([current_state], (1,
-                                                  self.spaces.observation_space.shape[0],
-                                                  self.spaces.observation_space.shape[1],
-                                                  self.spaces.observation_space.shape[2]))
-
-                next_history_output = np.reshape([current_output], (1, 500))
-                """
-                reward = (10 * (min(self.target[0], current_cl) - min(self.target[0], pre_cl)) / cl_base + \
-                          10 * (max(self.target[1], pre_fxy)    - max(self.target[1], current_fxy)) / fxy_base)/4
-                """
-                reward = (10 * (min(current_cl - self.target[0], 0)) / cl_base + \
-                          10 * (min(self.target[1] - current_fxy, 0)) / fxy_base)/4
-
-                #r_in = get_reward_intrinsic(self.icm, self.r_in,  )
-                one_hot_action = np.zeros(self.spaces.action_space.shape)
-                one_hot_action[action] = 1
-                #r_in = self.icm2.predict([history_output, next_history_output, np.array([one_hot_action])])[0]
-                r_in = 0
-                # 정책의 최대값
-                self.avg_p_max += np.amax(self.actor.predict([history, history_output]))
-
-                non_clipped = reward
-
-                reward = reward + r_in
-
-                # score_addup
-                score += reward
-
-                if best_cl < current_cl and best_fxy > current_fxy:
-                    best_cl = min(self.target[0], current_cl)
-                    best_fxy = max(self.target[1], current_fxy)
-                    best_score = score
-
-                reward = np.clip(reward, -1., 1.)
-
-                self.append_sample(history,
-                                   action,
-                                   reward,
-                                   next_history,
-                                   history_output,
-                                   next_history_output)
-                self.t += 1
-                if changed:
-
-                    # 샘플을 저장
-                    """if nonChanged:
-                        self.append_sample(u_history,
-                                           u_action,
-                                           u_reward,
-                                           u_next_history,
-                                           u_history_output,
-                                           u_next_history_output)
-                    """
-
-                    self.queue.put([self.thread_id,
-                                    max_policy_matrix,
-                                    policy,
-                                    pre_output_matrix,
-                                    current_output_matrix,
-                                    position_matrix,
-                                    pre_cl,
-                                    pre_fxy,
-                                    current_cl,
-                                    current_fxy,
-                                    policy_matrix])
-                    self.T += 1
-
-                    pickle.dump([history, action, reward, done], self.file_trainable, protocol=pickle.HIGHEST_PROTOCOL)
-
-                    dump_list = []
-                    for value in cross_set:
-                        a_list = [value.summary_tensor,
-                                  value.input_tensor_full,
-                                  value.output_tensor,
-                                  value.flux_tensor,
-                                  value.density_tensor_full]
-                        dump_list.append(a_list)
-
-                    values = self.critic.predict([next_history, next_history_output])[0]
-                    values2 = self.local_critic.predict([next_history, next_history_output])[0]
-
-                    print("|{:4d} |".format(self.thread_id),
-                          "{:4d} |".format(ab55[position][1]-9),
-                          "{:4d} |".format(ab55[position][2]-9),
-                          "{:4d} |".format(ab55[posibilities][1]-9),
-                          "{:4d} |".format(ab55[posibilities][2]-9),
-                          "{:3.2f} |".format(current_cl),
-                          "{:3.2f} |".format(current_fxy),
-                          "{:3.2f} |".format(non_clipped),
-                          "{:3.2f} |".format(r_in),
-                          "{:1.4f} |".format(values[0]),
-                          "{:1.4f} |".format(values2[0]),
-                          )
-
-
-                    pickle.dump(dump_list, self.file, protocol=pickle.HIGHEST_PROTOCOL)
-                    nonChanged = True
-
-                else:
-                    nonChanged = False
-                    u_history = history
-                    u_action = action
-                    u_reward = reward
-                    u_next_history = next_history
-                    u_history_output = history_output
-                    u_next_history_output = next_history_output
-
-                if best:
-
-                    history = next_history
-                    history_output = next_history_output
-                else:
+                if not succ_error:
                     self.env.step_back()
+                else:
+                    done = not info
 
-                # 에피소드가 끝나거나 최대 타임스텝 수에 도달하면 학습을 진행
-                if self.t >= self.t_max or done:
-                    print("{}".format(self.thread_id), ' '.join('{:3d}'.format(np.argmax(k)) for k in self.actions))
-                    print("{}".format(self.thread_id), ' '.join('{:3d}'.format(int(k*100)) for k in self.rewards))
-                    self.train_model(False)
-                    self.update_local_model()
-                    self.t = 0
+                    if best:
+                        pre_cl = current_cl
+                        pre_fxy = current_fxy
 
-                if done:
-                    # 각 에피소드 당 학습 정보를 기록
-                    episode += 1
+                    pre_output_matrix = current_output_matrix
 
-                    print(
-                          "{:4d} |".format(self.thread_id),
-                          "{:4d} |".format(self.T),
-                          "{:4d} |".format(step),
-                          "{:3.2f} |".format(start_cl),
-                          "{:3.2f} |".format(start_fxy),
-                          "{:3.2f} |".format(best_cl),
-                          "{:3.2f} |".format(best_fxy),
-                          "{:3.2f} |".format(best_score),
-                          "{:3.2f} |".format(score),
-                          "{:3.2f} |".format(self.epsilon),
-                          )
+                    current_state, \
+                    current_output, \
+                    current_cl, \
+                    current_fxy, \
+                    current_output_matrix = \
+                        self.my_input_output(cross_set)
 
-                    stats = [score, self.avg_p_max / float(step), step]
-                    for i in range(len(stats)):
-                        self.sess.run(self.update_ops[i], feed_dict={
-                            self.summary_placeholders[i]: float(stats[i])
-                        })
-                    summary_str = self.sess.run(self.summary_op)
-                    self.summary_writer.add_summary(summary_str, episode + 1)
-                    self.avg_p_max = 0
-                    self.avg_loss = 0
-                    step = 0
-                    self.T = 0
+                    next_history = np.reshape([current_state], (1,
+                                                      self.spaces.observation_space.shape[0],
+                                                      self.spaces.observation_space.shape[1],
+                                                      self.spaces.observation_space.shape[2]))
+
+                    next_history_output = np.reshape([current_output], (1, 500))
+                    """
+                    reward = (10 * (min(self.target[0], current_cl) - min(self.target[0], pre_cl)) / cl_base + \
+                              10 * (max(self.target[1], pre_fxy)    - max(self.target[1], current_fxy)) / fxy_base)/4
+                    """
+                    reward = (10 * (min(current_cl - self.target[0], 0)) / cl_base + \
+                              10 * (min(self.target[1] - current_fxy, 0)) / fxy_base)/4
+
+                    #r_in = get_reward_intrinsic(self.icm, self.r_in,  )
+                    one_hot_action = np.zeros(self.spaces.action_space.shape)
+                    one_hot_action[action] = 1
+                    #r_in = self.icm2.predict([history_output, next_history_output, np.array([one_hot_action])])[0]
+                    r_in = 0
+                    # 정책의 최대값
+                    self.avg_p_max += np.amax(self.actor.predict([history, history_output]))
+
+                    non_clipped = reward
+
+                    reward = reward + r_in
+
+                    # score_addup
+                    score += reward
+
+                    if best_cl < current_cl and best_fxy > current_fxy:
+                        best_cl = min(self.target[0], current_cl)
+                        best_fxy = max(self.target[1], current_fxy)
+                        best_score = score
+
+                    reward = np.clip(reward, -1., 1.)
+
+                    self.append_sample(history,
+                                       action,
+                                       reward,
+                                       next_history,
+                                       history_output,
+                                       next_history_output)
+                    self.t += 1
+                    if changed:
+
+                        # 샘플을 저장
+                        """if nonChanged:
+                            self.append_sample(u_history,
+                                               u_action,
+                                               u_reward,
+                                               u_next_history,
+                                               u_history_output,
+                                               u_next_history_output)
+                        """
+
+                        self.queue.put([self.thread_id,
+                                        max_policy_matrix,
+                                        policy,
+                                        pre_output_matrix,
+                                        current_output_matrix,
+                                        position_matrix,
+                                        pre_cl,
+                                        pre_fxy,
+                                        current_cl,
+                                        current_fxy,
+                                        policy_matrix])
+                        self.T += 1
+
+                        pickle.dump([history, action, reward, done], self.file_trainable, protocol=pickle.HIGHEST_PROTOCOL)
+
+                        dump_list = []
+                        for value in cross_set:
+                            a_list = [value.summary_tensor,
+                                      value.input_tensor_full,
+                                      value.output_tensor,
+                                      value.flux_tensor,
+                                      value.density_tensor_full]
+                            dump_list.append(a_list)
+
+                        values = self.critic.predict([next_history, next_history_output])[0]
+                        values2 = self.local_critic.predict([next_history, next_history_output])[0]
+
+                        print("|{:4d} |".format(self.thread_id),
+                              "{:4d} |".format(ab55[position][1]-9),
+                              "{:4d} |".format(ab55[position][2]-9),
+                              "{:4d} |".format(ab55[posibilities][1]-9),
+                              "{:4d} |".format(ab55[posibilities][2]-9),
+                              "{:3.2f} |".format(current_cl),
+                              "{:3.2f} |".format(current_fxy),
+                              "{:3.2f} |".format(non_clipped),
+                              "{:3.2f} |".format(r_in),
+                              "{:1.4f} |".format(values[0]),
+                              "{:1.4f} |".format(values2[0]),
+                              )
+
+
+                        pickle.dump(dump_list, self.file, protocol=pickle.HIGHEST_PROTOCOL)
+                        nonChanged = True
+
+                    else:
+                        nonChanged = False
+                        u_history = history
+                        u_action = action
+                        u_reward = reward
+                        u_next_history = next_history
+                        u_history_output = history_output
+                        u_next_history_output = next_history_output
+
+                    if best:
+
+                        history = next_history
+                        history_output = next_history_output
+                    else:
+                        self.env.step_back()
+
+                    # 에피소드가 끝나거나 최대 타임스텝 수에 도달하면 학습을 진행
+                    if self.t >= self.t_max or done:
+                        print("{}".format(self.thread_id), ' '.join('{:3d}'.format(np.argmax(k)) for k in self.actions))
+                        print("{}".format(self.thread_id), ' '.join('{:3d}'.format(int(k*100)) for k in self.rewards))
+                        self.train_model(False)
+                        self.update_local_model()
+                        self.t = 0
+
+                    if done:
+                        # 각 에피소드 당 학습 정보를 기록
+                        episode += 1
+
+                        print(
+                              "{:4d} |".format(self.thread_id),
+                              "{:4d} |".format(self.T),
+                              "{:4d} |".format(step),
+                              "{:3.2f} |".format(start_cl),
+                              "{:3.2f} |".format(start_fxy),
+                              "{:3.2f} |".format(best_cl),
+                              "{:3.2f} |".format(best_fxy),
+                              "{:3.2f} |".format(best_score),
+                              "{:3.2f} |".format(score),
+                              "{:3.2f} |".format(self.epsilon),
+                              )
+
+                        stats = [score, self.avg_p_max / float(step), step]
+                        for i in range(len(stats)):
+                            self.sess.run(self.update_ops[i], feed_dict={
+                                self.summary_placeholders[i]: float(stats[i])
+                            })
+                        summary_str = self.sess.run(self.summary_op)
+                        self.summary_writer.add_summary(summary_str, episode + 1)
+                        self.avg_p_max = 0
+                        self.avg_loss = 0
+                        step = 0
+                        self.T = 0
 
     # k-스텝 prediction 계산
     def discounted_prediction(self, rewards, done, next_states, next_outputs, reverse = False):
