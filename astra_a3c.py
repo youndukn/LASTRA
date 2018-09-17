@@ -341,7 +341,7 @@ class A3CAgent:
     def train(self):
         my_queue = queue.Queue()
 
-        self.load_model("./save_model/astra_a3c")
+        #self.load_model("./save_model/astra_a3c")
         # 쓰레드 수만큼 Agent 클래스 생성
         the_directory = "{}{}{}{}{}depl{}".format("/home/youndukn/Plants/1.4.0/",
                                               "ygn3",
@@ -814,7 +814,9 @@ class Agent(threading.Thread):
 
             nonChanged = False
 
-            while not done:
+            n_trainable = []
+
+            while len(self.states) <= 5:
 
                 step += 1
 
@@ -941,22 +943,21 @@ class Agent(threading.Thread):
                     #r_in = get_reward_intrinsic(self.icm, self.r_in,  )
                     one_hot_action = np.zeros(self.spaces.action_space.shape)
                     one_hot_action[action] = 1
-                    #r_in = self.icm2.predict([history_output, next_history_output, np.array([one_hot_action])])[0]
-                    r_in = 0
+                    r_in = self.icm2.predict([history_output, next_history_output, np.array([one_hot_action])])[0]
+                    #r_in = 0
                     # 정책의 최대값
                     self.avg_p_max += np.amax(self.actor.predict([history, history_output]))
 
                     non_clipped = reward
 
-                    reward = reward + r_in
+                    reward = reward
 
                     # score_addup
                     score += reward
 
-
-
+                    #r_in = np.clip(r_in, 0, 1)
+                    r_in = 0
                     reward = np.clip(reward, -1., 1.)
-
 
                     self.t += 1
                     if changed:
@@ -1029,60 +1030,53 @@ class Agent(threading.Thread):
                         u_history_output = history_output
                         u_next_history_output = next_history_output
 
+                    next_policy = self.local_actor.predict([next_history, next_history_output])[0]
+                    self.append_sample(history,
+                                       action,
+                                       reward,
+                                       next_history,
+                                       history_output,
+                                       next_history_output,
+                                       policy,
+                                       next_policy,
+                                       r_in)
+                    n_o1, n_o2, n_o3 = self.train_n_model(False)
+                    n_trainable.append((n_o1, n_o2, n_o3))
+
+                    self.n_states, self.n_actions, self.n_rewards, self.n_next_states, self.n_outputs, self.n_next_outputs = [], [], [], [], [], []
+                    self.n_policies = []
+                    self.n_next_policies = []
+
                     if best_cl <= current_cl and best_fxy >= current_fxy:
-                        next_policy = self.local_actor.predict([next_history, next_history_output])[0]
-
-                        self.append_sample(history,
-                                           action,
-                                           reward,
-                                           next_history,
-                                           history_output,
-                                           next_history_output,
-                                           policy,
-                                           next_policy)
-
                         best_cl = min(self.target[0], current_cl)
                         best_fxy = max(self.target[1], current_fxy)
                         best_score = score
                         history = next_history
                         history_output = next_history_output
                     else:
-
-                        next_policy = self.local_actor.predict([next_history, next_history_output])[0]
-                        self.append_sample(history,
-                                           action,
-                                           reward,
-                                           next_history,
-                                           history_output,
-                                           next_history_output,
-                                           policy,
-                                           next_policy)
                         self.env.step_back()
                         current_cl = pre_cl
                         current_fxy = pre_fxy
 
                     # 에피소드가 끝나거나 최대 타임스텝 수에 도달하면 학습을 진행
-                    if self.t >= self.t_max or done:
+                    if len(self.states) > 5:
                         print("{}".format(self.thread_id), ' '.join('{:3d}'.format(np.argmax(k)) for k in self.actions))
                         print("{}".format(self.thread_id), ' '.join('{:3d}'.format(int(k*100)) for k in self.rewards))
                         print("{}".format(self.thread_id), ' '.join('{:3d}'.format(np.argmax(k)) for k in self.n_actions))
                         print("{}".format(self.thread_id), ' '.join('{:3d}'.format(int(k*100)) for k in self.n_rewards))
-                        n_o1, n_o2, n_o3, n_o4, n_o5 = self.train_n_model(False)
+
                         if len(self.states)>=1:
                             o1, o2, o3 = self.train_model(False)
                             self.optimizer[0](o1)
                             self.optimizer[1](o2)
                             self.optimizer[2](o3)
 
-                        self.optimizer[0](n_o1)
-                        self.optimizer[3](n_o2)
-                        self.optimizer[0](n_o4)
-                        self.optimizer[3](n_o5)
-                        self.optimizer[2](n_o3)
+                        for n_o in n_trainable:
+                            self.optimizer[0](n_o[0])
+                            self.optimizer[3](n_o[1])
+                            self.optimizer[2](n_o[2])
 
-                        self.n_states, self.n_actions, self.n_rewards, self.n_next_states, self.n_outputs, self.n_next_outputs = [], [], [], [], [], []
-                        self.n_policies = []
-                        self.n_next_policies = []
+                        n_trainable = []
 
                         self.states, self.actions, self.rewards, self.next_states, self.outputs, self.next_outputs = [], [], [], [], [], []
                         self.policies = []
@@ -1091,7 +1085,7 @@ class Agent(threading.Thread):
                         self.update_local_model()
                         self.t = 0
 
-                    if done:
+                    if len(self.states) > 5:
                         # 각 에피소드 당 학습 정보를 기록
                         episode += 1
 
@@ -1348,8 +1342,8 @@ class Agent(threading.Thread):
 
         advantages = discounted_prediction - values
 
-        print("{}".format(self.thread_id), "dis_n",' '.join('{:1.2f}'.format(k) for k in discounted_prediction))
-        print("{}".format(self.thread_id), "val_n",' '.join('{:1.2f}'.format(k) for k in values))
+        #print("{}".format(self.thread_id), "dis_n",' '.join('{:1.2f}'.format(k) for k in discounted_prediction))
+        #print("{}".format(self.thread_id), "val_n",' '.join('{:1.2f}'.format(k) for k in values))
 
         policy = self.actor.predict([states, outputs])
         old_policy = np.array(self.n_policies)
@@ -1357,11 +1351,11 @@ class Agent(threading.Thread):
         old_action_prob = np.sum(np.array(self.n_actions) * old_policy, axis=1)
         cross_entropy = action_prob/(old_action_prob + 1e-10)
         log_cross_entropy = np.log(action_prob + 1e-10)
-        entropy = np.sum(policy * np.log((policy/old_policy + 1e-10)), axis=1)
+        entropy = np.sum(policy * np.log((policy/(old_policy + 1e-10))), axis=1)
 
-        print("{}".format(self.thread_id), "n_x_ent    ", ' '.join('{:1.3f}'.format(k) for k in cross_entropy))
-        print("{}".format(self.thread_id), "n_log_x_ent", ' '.join('{:1.3f}'.format(k) for k in log_cross_entropy))
-        print("{}".format(self.thread_id), "n_ent      ", ' '.join('{:1.3f}'.format(k) for k in entropy))
+        #print("{}".format(self.thread_id), "n_x_ent    ", ' '.join('{:1.3f}'.format(k) for k in cross_entropy))
+        #print("{}".format(self.thread_id), "n_log_x_ent", ' '.join('{:1.3f}'.format(k) for k in log_cross_entropy))
+        #print("{}".format(self.thread_id), "n_ent      ", ' '.join('{:1.3f}'.format(k) for k in entropy))
 
         """
         if len(self.rewards) >2:
@@ -1379,15 +1373,15 @@ class Agent(threading.Thread):
             self.optimizer[1]([next_states[1:], next_outputs[1:], reversed_discounted_prediction])
         """
 
-        reversed_discounted_prediction = self.n_discounted_prediction(self.n_rewards, done, self.n_states, self.n_outputs)
+        reversed_discounted_prediction = self.n_discounted_prediction(self.n_rewards, done, self.n_states, self.n_outputs, True)
 
         reversed_values = self.n_critic.predict([next_states, next_outputs])
         reversed_values = np.reshape(reversed_values, len(reversed_values))
 
         reversed_advantages = reversed_discounted_prediction - reversed_values
 
-        print("{}".format(self.thread_id), ' '.join('{:1.2f}'.format(k) for k in reversed_discounted_prediction))
-        print("{}".format(self.thread_id), ' '.join('{:1.2f}'.format(k) for k in reversed_values))
+        #print("{}".format(self.thread_id),  ' '.join('{:1.2f}'.format(k) for k in reversed_discounted_prediction))
+        #print("{}".format(self.thread_id), ' '.join('{:1.2f}'.format(k) for k in reversed_values))
 
         """
         if len(states)>2:
@@ -1435,10 +1429,11 @@ class Agent(threading.Thread):
 
         return [states, outputs, np.array(self.n_actions), advantages, np.array(self.n_policies)], \
                [states, outputs, discounted_prediction], \
-               [outputs, next_outputs, np.array(self.n_actions), np.array(discounted_prediction).reshape(-1, 1)],\
+               [outputs, next_outputs, np.array(self.n_actions), np.array(discounted_prediction).reshape(-1, 1)],
+        """
                [next_states, next_outputs, np.array(self.n_actions), reversed_advantages, np.array(self.n_next_policies)],\
                [next_states, next_outputs, reversed_discounted_prediction]
-
+        """
     # 로컬신경망을 생성하는 함수
     def build_local_model(self):
         input = Input(shape=self.state_size, name="xs_input")
@@ -1517,7 +1512,7 @@ class Agent(threading.Thread):
 
 
     # 샘플을 저장
-    def append_sample(self, history, action, reward, next_history, output, next_output, policy, next_policy):
+    def append_sample(self, history, action, reward, next_history, output, next_output, policy, next_policy, r_in):
 
         self.n_states.append(history)
         self.n_next_states.append(next_history)
@@ -1537,7 +1532,7 @@ class Agent(threading.Thread):
         act[posibilities*self.spaces.action_space.shapes[0]+position] = 1
         """
         self.n_actions.append(act)
-        self.n_rewards.append(reward)
+        self.n_rewards.append(np.clip(reward+r_in, -1, 1))
 
         if reward >= 0:
             self.states.append(history)
@@ -1558,7 +1553,7 @@ class Agent(threading.Thread):
             act[posibilities*self.spaces.action_space.shapes[0]+position] = 1
             """
             self.actions.append(act)
-            self.rewards.append(reward)
+            self.rewards.append(np.clip(reward+r_in, -1, 1))
 
 if __name__ == "__main__":
     global_agent = A3CAgent()
