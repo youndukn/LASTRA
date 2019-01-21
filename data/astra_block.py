@@ -45,6 +45,10 @@ class AstraBlock:
 
         self.dictionary[key] = value_temp
 
+    def reset(self):
+        self.dictionary = {}
+        self.separator = ' '
+
     def set_value_separator(self, separator):
         self.separator = separator
 
@@ -82,6 +86,9 @@ class AstraShuffleBlock(AstraBlock):
                             assembly.set_rotation(assembly_values[3])
                         self.core.set_shuffle_at(assembly, int(row[0])-1, col)
                         col += 1
+    def reset(self):
+        super(AstraShuffleBlock, self).reset()
+        self.core = Core(self.block_name)
 
     def print_block(self):
         string = super().print_block()
@@ -99,6 +106,7 @@ class AstraBatchBlock(AstraBlock):
     def __init__(self):
         super(AstraBatchBlock, self).__init__("LPD_B&C")
         self.key_names.append("FUEL_DB")
+        self.key_names.append("AXCOMP")
         self.batches = []
 
     def finalize(self):
@@ -108,6 +116,10 @@ class AstraBatchBlock(AstraBlock):
                 self.batches.append(batch[0])
 
         sorted(self.batches)
+
+    def reset(self):
+        super(AstraBatchBlock, self).reset()
+        self.batches = []
 
     def print_block(self):
         string = super().print_block()
@@ -124,6 +136,9 @@ class AstraSingleBlock(AstraBlock):
     def finalize(self):
         return
 
+    def reset(self):
+        super(AstraSingleBlock, self).reset()
+
     def print_block(self):
         string = super().print_block()
         for key in self.dictionary.keys():
@@ -137,12 +152,15 @@ class AstraDirectoryBlock(AstraSingleBlock):
         self.directory_keys = dir_key_names
         self.main_directory = main_directory
 
+    def reset(self):
+        super(AstraDirectoryBlock, self).reset()
+
     def finalize(self):
         for key in self.dictionary.keys():
             value = self.dictionary[key]
             if key in self.directory_keys:
-                self.dictionary[key] = os.path.abspath("{}{}".format(self.main_directory, value))
-        return
+                if not os.path.isabs(value):
+                    self.dictionary[key] = os.path.abspath("{}{}".format(self.main_directory, value))
 
 
 class AstraJobBlock(AstraDirectoryBlock):
@@ -187,6 +205,9 @@ class AstraJobBlock(AstraDirectoryBlock):
                                             main_directory
                                             )
         self.print_order = keywords_in_order
+
+    def reset(self):
+        super(AstraJobBlock, self).reset()
 
     def print_block(self):
         string = self.delimiter + self.block_name + "\n"
