@@ -5,7 +5,7 @@ import subprocess
 import copy
 import os
 from data.astra_train_set import AstraTrainSet
-from data.cross_power_set import CrossPowerSet, CrossPowerSet3D
+from data.cross_power_set import CrossPowerSetI,CrossPowerSetN, CrossPowerSet3D
 from astra_io.astra_input_reader import AstraInputReader
 from astra_io.astra_output_reader import AstraOutputReader
 import random
@@ -20,8 +20,9 @@ class Astra():
     normal_dis = 1
     greedy_dis = 2
     upper_normal_dis = 3
+    lower_normal_dis = 4
 
-    distribution = uniform_dis
+    distribution = lower_normal_dis
 
     n_move = 10
 
@@ -68,6 +69,9 @@ class Astra():
         #Working Directory
         self.__working_directory = working_directory
 
+        self.found_lps = {}
+        self.changed_lps = {}
+
         #Input
         #output_core, reward_list, _, successful = \
         #    self.run_process_astra_3D(self.__astra_input_reader.blocks[AstraInputReader.shuff_block])
@@ -101,6 +105,10 @@ class Astra():
         elif Astra.distribution == Astra.upper_normal_dis:
             index = np.random.normal(0, best_count / 4)
             index = best_count + -1*abs(index)
+            self.__start_index = int(np.clip(index, 0, best_count-1))
+        elif Astra.distribution == Astra.lower_normal_dis:
+            index = np.random.normal(0, best_count / 4)
+            index = abs(index)
             self.__start_index = int(np.clip(index, 0, best_count-1))
         else:
             self.__start_index = best_count - 1
@@ -183,21 +191,39 @@ class Astra():
         elif m_position1 % Astra.n_move == Astra.bp_de:
             changed = shuffle_block.core.poison(self.__position[position1], False)
 
-        if not changed:
+        changed_block = shuffle_block.print_block()
+        include_lps = changed_block in self.found_lps
+
+        if not include_lps:
+            if not changed:
+                self.__input_core_history.append(next_core)
+                copy_train_set = copy.deepcopy(self.__train_set_history[-1])
+                self.__train_set_history.append(copy.deepcopy(self.__train_set_history[-1]))
+                self.__crosspower_set_history.append(copy.deepcopy(self.__crosspower_set_history[-1]))
+                return copy_train_set.input, 0.0, changed, True, True, copy.deepcopy(self.__crosspower_set_history[-1])
+
+            self.__astra_input_reader.blocks[AstraInputReader.shuff_block] = shuffle_block
+
             self.__input_core_history.append(next_core)
-            copy_train_set = copy.deepcopy(self.__train_set_history[-1])
-            self.__train_set_history.append(copy.deepcopy(self.__train_set_history[-1]))
-            self.__crosspower_set_history.append(copy.deepcopy(self.__crosspower_set_history[-1]))
-            return copy_train_set.input, 0.0, changed, True, True, copy.deepcopy(self.__crosspower_set_history[-1])
+            # output_core, reward_list, changed, successful = self.run_process_astra_3D(shuffle_block)
+            output_core, reward_list, changed, successful, succ_error, cross_set = self.run_process_astra(shuffle_block)
 
-        self.__astra_input_reader.blocks[AstraInputReader.shuff_block] = shuffle_block
+            self.__train_set_history.append(AstraTrainSet(output_core, None, reward_list, False, None))
+            self.__crosspower_set_history.append(cross_set)
+            #self.found_lps[changed_block] = (output_core, reward_list, changed, successful, succ_error, cross_set)
+        else:
+            #print("Already",len(keys))
 
-        self.__input_core_history.append(next_core)
-        #output_core, reward_list, changed, successful = self.run_process_astra_3D(shuffle_block)
-        output_core, reward_list, changed, successful, succ_error, cross_set = self.run_process_astra(shuffle_block)
-
-        self.__train_set_history.append(AstraTrainSet(output_core, None, reward_list, False, None))
-        self.__crosspower_set_history.append(cross_set)
+            output_core, reward_list, _, successful, succ_error, cross_set = self.found_lps[changed_block]
+            if not changed:
+                self.__input_core_history.append(next_core)
+                self.__train_set_history.append(copy.deepcopy(self.__train_set_history[-1]))
+                self.__crosspower_set_history.append(copy.deepcopy(self.__crosspower_set_history[-1]))
+            else:
+                self.__astra_input_reader.blocks[AstraInputReader.shuff_block] = shuffle_block
+                self.__input_core_history.append(next_core)
+                self.__train_set_history.append(AstraTrainSet(output_core, None, reward_list, False, None))
+                self.__crosspower_set_history.append(cross_set)
 
         return output_core, reward_list, changed, successful, succ_error, cross_set
 
@@ -234,7 +260,21 @@ class Astra():
             depletions = []
             if cross_power_density_list:
                 for list in cross_power_density_list:
-                    depletions.append(CrossPowerSet(list[0],list[1], list[2], list[3], list[4], list[5], list[6],list[7]))
+                    depletions.append(CrossPowerSetI(list[0],
+                                                    list[1],
+                                                    list[2],
+                                                    list[3],
+                                                    list[4],
+                                                    list[5],
+                                                    list[6],
+                                                    list[7],
+                                                    list[8],
+                                                    list[9],
+                                                    list[10],
+                                                    list[11],
+                                                    list[12],
+                                                    list[13],
+                                                    list[14]))
 
             return output_core, reward_list, True, successful, succ_error, depletions,
 
@@ -257,7 +297,14 @@ class Astra():
             if successful:
                 depletions = []
                 for list in cross_power_density_list:
-                    depletions.append(CrossPowerSet3D(list[0],list[1], list[2], list[3], list[4], list[5], list[6],list[7]))
+                    depletions.append(CrossPowerSet3D(list[0],
+                                                      list[1],
+                                                      list[2],
+                                                      list[3],
+                                                      list[4],
+                                                      list[5],
+                                                      list[6],
+                                                      list[7]))
                 self.cross_set = depletions
             else:
                 self.cross_set = None

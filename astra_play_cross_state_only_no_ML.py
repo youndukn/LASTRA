@@ -12,6 +12,7 @@ import keras.backend as K
 import glob
 import gym
 
+from a3c import ActorCritic
 from data.astra_train_set import AstraTrainSet, TrainSet
 from astra import Astra
 import pickle
@@ -22,6 +23,8 @@ import tensorflow as tf
 import keras
 from multiprocessing import Process
 import enviroments
+import a3c
+
 
 # Fix for TF 0.12
 
@@ -45,7 +48,9 @@ T = 0
 # Consecutive screen frames when performing training
 action_repeat = 3
 # Async gradient update frequency of each learning thread
-I_AsyncUpdate = 20
+I_AsyncUpdate = 30
+# Async gradient update frequency of each learning thread
+I_ModelUpdate = 30
 # Timestep to reset the target network
 I_target = 40000
 # Learning rate
@@ -68,6 +73,8 @@ checkpoint_interval = 2000
 # Number of episodes to run gym evaluation
 num_eval_episodes = 100
 
+cl_base = 15000
+fxy_base = 1.55
 
 dictionary = {}
 
@@ -83,66 +90,89 @@ def sample_final_epsilon():
     probabilities = np.array([0.4, 0.3, 0.3])
     return np.random.choice(final_epsilons, 1, p=list(probabilities))[0]
 
+def my_input_output(values):
+    burnup_boc = values[0]
+    burnup_eoc = values[-1]
+    s_batch_init = burnup_boc.input_tensor_full
+    s_batch_init_den = burnup_boc.density_tensor_full
+    s_batch_init_den = np.array(s_batch_init_den)
+    my_state = np.concatenate((s_batch_init, s_batch_init_den), axis=2)
+    my_cl = burnup_eoc.summary_tensor[0]
 
-def actor_learner_thread(actor_critic, thread_id, env, num_actions, saver, q, input_directory):
+    my_fxy = 0
+
+    for burnup_point in values:
+        if my_fxy < burnup_point.summary_tensor[5]:
+            my_fxy = burnup_point.summary_tensor[5]
+    return my_state, my_cl, my_fxy
+
+def actor_learner_thread(target, actor_critic, thread_id, env, num_actions, saver, q, input_directory):
     """
     Actor-learner thread implementing asynchronous one-step Q-learning, as specified
     in algorithm 1 here: http://arxiv.org/pdf/1602.01783v1.pdf.
     """
-    global TMAX, T
+    global TMAX
+    with graph.as_default():
+        directory = "{}{}{}".format(input_directory, os.path.sep, thread_id)
 
-    directory = "{}{}{}".format(input_directory, os.path.sep, thread_id)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+        #env = Astra("..{}ASTRA{}01_astra_y310_nom_boc.job".format(os.path.sep, os.path.sep), working_directory=directory)
+        input_name = glob.glob("{}01_*.inp".format(input_directory))
 
-    #env = Astra("..{}ASTRA{}01_astra_y310_nom_boc.job".format(os.path.sep, os.path.sep), working_directory=directory)
-    input_name = glob.glob("{}01_*.inp".format(input_directory))
+        env = Astra(input_name[0], main_directory = input_directory, working_directory=directory)
 
-    env = Astra(input_name[0], main_directory = input_directory, working_directory=directory)
+        file = open('/media/youndukn/lastra/plants_data1/{}_data_{}'.format(input_name[0].replace(input_directory, ""), thread_id), 'wb')
+        reward_file = open('/media/youndukn/lastra/plants_data1/rewards_{}'.format(thread_id), 'wb')
 
-    file = open('/media/youndukn/lastra/plants_data_1/{}_data_{}'.format(input_name[0].replace(input_directory, ""), thread_id), 'wb')
+        final_epsilon = sample_final_epsilon()
+        initial_epsilon = 0.3
+        epsilon = 0.3
 
-    final_epsilon = sample_final_epsilon()
-    initial_epsilon = 0.3
-    epsilon = 0.3
+        r_batch = []
 
-    r_batch = []
-    s_batch_l0 = []
-    s_batch_l2 = []
-    y_batch0 = []
-    y_batch2 = []
+        print("Thread " + str(thread_id) + " - Final epsilon: " + str(final_epsilon))
 
-    print("Thread " + str(thread_id) + " - Final epsilon: " + str(final_epsilon))
+        time.sleep(thread_id)
 
-    time.sleep(thread_id)
-
-    t = 0
-
-    resuable = {}
-
-    satisfied_data = open('satisfied_numb.txt', 'w')
-    t_run = 0
-    is_checkable = False
-    while T < TMAX:
-
-        # Set up per-episode counters
-        ep_reward = 0
-        episode_ave_max_q = 0
+        t = 0
         ep_t = 0
-        r_t_p = 0
+        T = 0
+        ep_T = 0
 
-        while True:
+        ep_r_t = 0
+        ep_r_T = 0
 
+        ep_reward = 0
+
+
+        my_state, my_cl, my_fxy = my_input_output(env.cross_set)
+
+        while T < TMAX:
+
+            my_state = my_state.reshape((1, actor_critic.env.observation_space.shape[0], actor_critic.env.observation_space.shape[1], actor_critic.env.observation_space.shape[2]))
+
+            action, isRandom = actor_critic.act(my_state, thread_id)
+            max_action = np.argmax(action)
+            posibilities = max_action%(num_actions+3+2)
+            position = int(max_action/(num_actions+3+2))
+            action = action.reshape((1, actor_critic.env.action_space.shape[0]))
+
+            """
             posibilities = random.randrange(num_actions+3+2)
             position = random.randrange(num_actions)
+            """
             if posibilities < num_actions:
+
                 action_index = (position*num_actions)+posibilities
                 s_t1, r_t, changed, info, satisfied = env.step_shuffle(action_index, [0, 1, 4])
             elif posibilities >= num_actions and posibilities < num_actions+3:
+
                 action_index = (position * 3) + (posibilities-num_actions)
                 s_t1, r_t, changed, info, satisfied = env.step_rotate(action_index, [0, 1, 4])
             elif posibilities >= num_actions+3 and posibilities < num_actions+5:
+
                 action_index = (position*2) + (posibilities-num_actions-3)
                 s_t1, r_t, changed, info, satisfied = env.step_bp(action_index, [0, 1, 4])
             """
@@ -151,7 +181,7 @@ def actor_learner_thread(actor_critic, thread_id, env, num_actions, saver, q, in
             numb = int(glob_action/(num_actions+3+2))
             posibilities = glob_action%(num_actions+3+2)
             """
-            satisfied_data.write("{}".format(T))
+
             s_t1 = AstraTrainSet(s_t1, None, None, not info, r_t).state
 
             terminal = not info
@@ -160,75 +190,79 @@ def actor_learner_thread(actor_critic, thread_id, env, num_actions, saver, q, in
             if epsilon > final_epsilon:
                 epsilon -= (initial_epsilon - final_epsilon) / anneal_epsilon_timesteps
 
-            clipped_r_t = np.clip((r_t - r_t_p)*100, -1, 1)
             #y_batch.append(clipped_r_t)
-            if changed and not terminal:
-                is_checkable = True
-                if env.cross_set:
-                    r_batch.append(env.cross_set)
 
-            #print("| Thread {:2d}".format(int(thread_id)), "| Step", t,
-            #      "| Reward: {:4d}".format(int(clipped_r_t)), "| Batch: {:4d}".format(int(y_batch[-1])))
+            pre_state = my_state
+            pre_cl = my_cl
+            pre_fxy = my_fxy
 
-            #a_batch.append(a_t)
-            #s_batch.append(s_t)
+            my_state, my_cl, my_fxy = my_input_output(env.cross_set)
+            my_state = my_state.reshape((1,
+                                         actor_critic.env.observation_space.shape[0],
+                                         actor_critic.env.observation_space.shape[1],
+                                         actor_critic.env.observation_space.shape[2]))
 
-            # Update the state and counters
-            s_t = s_t1
-            r_t_p = r_t
+            reward = 100 * (min(target[0], my_cl) - min(target[0], pre_cl)) / cl_base + \
+                     100 * (max(target[1], pre_fxy) - max(target[1], my_fxy)) / fxy_base
+
+            if terminal:
+                reward = -1
+
+            actor_critic.remember(pre_state, action, reward, my_state, terminal)
+            actor_critic.train(thread_id)
+
+
+            if changed:
+                pickle.dump((position, posibilities, my_cl, my_fxy, reward, len(r_batch)), reward_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+                if not terminal:
+                    if env.cross_set:
+                        r_batch.append(env.cross_set)
+
             t += 1
+            ep_t += 1
+
+            if not isRandom:
+                ep_r_t += 1
+
             if changed:
                 T += 1
-                t_run += 1
-            ep_t += 1
-            ep_reward += r_t
-            #episode_ave_max_q += np.max(readout_t)
+                ep_T += 1
+                if not isRandom:
+                    ep_r_T += 1
 
-            # Optionally update online network
+            ep_reward += reward
 
-            if t % I_AsyncUpdate == 0 or terminal:
+            if len(r_batch) % I_AsyncUpdate == I_AsyncUpdate-1 or terminal:
 
-                if is_checkable:
-                    append_data = TrainSet(s_batch_l0, [[1, ], ], r_batch)
-                    # append_data = TrainSet(s_batch, a_batch, r_batch, s_batch_l0, total_reward=y_batch)
-                    for values in r_batch:
-                        dump_list = []
+                for index, values in enumerate(r_batch):
 
-                        first_step = values[0]
-                        state = first_step.input_tensor_full
-                        key = hash(state.tostring())
+                    dump_list = []
 
-                        if not (key in resuable):
-                            for value in values:
-                                a_list = [value.summary_tensor, value.input_tensor_full, value.output_tensor, value.flux_tensor, value.density_tensor_full]
-                                dump_list.append(a_list)
-                            pickle.dump(dump_list, file, protocol=pickle.HIGHEST_PROTOCOL)
-                            dictionary[key] = 1
-                        else:
-                            dictionary[key] += 1
+                    for value in values:
+                        a_list = [value.summary_tensor,
+                                  value.input_tensor_full,
+                                  value.output_tensor,
+                                  value.flux_tensor,
+                                  value.density_tensor_full,
+                                  index]
+                        dump_list.append(a_list)
+                    pickle.dump(dump_list, file, protocol=pickle.HIGHEST_PROTOCOL)
 
+                print("| Thread {:2d}".format(int(thread_id)),
+                      "| GS {:5d}".format(t), "| GSR {:5d}".format(T),
+                      "| ES {:5d}".format(ep_t),"| ESR {:5d}".format(ep_T), "| ESRR {:5d}".format(ep_r_t),
+                      "| Reward: {:3.2f} |".format(float(ep_reward)))
 
-                is_checkable = False
-
-                y_batch0 = []
-                y_batch2 = []
-                s_batch_l0 = []
-
-                s_batch_l2 = []
                 r_batch = []
-
-            # Print end of episode stats
-            if terminal:
                 env.reset()
-                stats = [ep_reward, episode_ave_max_q/float(ep_t), epsilon]
-                print("| Thread {:2d}".format(int(thread_id)), "| Step", t, "| Stepreal", t_run,
-                      "| Reward: {:3.4f}".format(float(ep_reward)), " Qmax: {:5.4f}".format(
-                      (episode_ave_max_q/float(ep_t))),
-                      " Epsilon: %.5f" % epsilon, " Epsilon progress: %.6f" %
-                      (t/float(anneal_epsilon_timesteps)))
-                break
+                ep_reward = 0
+                ep_T = 0
+                ep_t = 0
+                ep_r_t = 0
 
-    file.close()
+        reward_file.close()
+        file.close()
 
 def get_num_actions():
     """
@@ -244,12 +278,14 @@ def train(num_actions):
     """
     Train a model.
     """
+    global graph
 
     q = queue.Queue()
     sess = tf.Session()
     K.set_session(sess)
-    env = enviroments.Enviroment()
-    actor_critic = ActorCritic(env, sess)
+    env = enviroments.Environment()
+    actor_critic = a3c.ActorCritic(env, sess)
+    graph = tf.get_default_graph()
 
     main_directory = "/home/youndukn/Plants/1.4.0/"
     directories = ["ucn4", "ygn3"]
@@ -275,7 +311,7 @@ def train(num_actions):
         for t in actor_learner_threads:
             t.join()
     """
-    for subDirectory in ['c{0:02}'.format(x) for x in range(5, 16)]:
+    for subDirectory in ['c{0:02}'.format(x) for x in range(6, 13)]:
 
         the_directory = "{}{}{}{}{}depl{}".format(main_directory,
                                               "ygn3",
@@ -286,8 +322,8 @@ def train(num_actions):
 
         # Start n_threads actor-learner training threads
         actor_learner_threads = \
-            [Process(target=actor_learner_thread,
-                     args=(actor_critic, thread_id, None, num_actions, None, q, the_directory))
+            [threading.Thread(target=actor_learner_thread,
+                     args=((17100, 1.52), actor_critic, thread_id, None, num_actions, None, q, the_directory))
              for thread_id in range(n_threads)]
         for t in actor_learner_threads:
             t.start()

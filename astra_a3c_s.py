@@ -298,9 +298,9 @@ class A3CAgent:
         self.state_size = self.spaces.observation_space.shape
         self.action_size = self.spaces.action_space.shape[0]
         # A3C 하이퍼파라미터
-        self.discount_factor = 0.80
+        self.discount_factor = 0.00
         self.no_op_steps = 30
-        self.actor_lr = 2.5e-5
+        self.actor_lr = 1e-4
         self.critic_lr = 2.5e-6
         # 쓰레드의 갯수
         self.threads = 6
@@ -546,17 +546,20 @@ class A3CAgent:
         # 정책 크로스 엔트로피 오류함수
         action_prob = K.sum(action * policy, axis=1)
         old_action_prob = K.sum(action * old_policy, axis=1)
-        #cross_entropy = K.clip(action_prob/(old_action_prob + 1e-10), min_value= 0.8, max_value=1.2) * advantages
-        cross_entropy = K.log(old_action_prob + 1e-10) * advantages
+        ratio = action_prob/(old_action_prob + 1e-10)
+        cross_entropy = K.minimum(K.clip(ratio, min_value= 0.8, max_value=1.2) * advantages, ratio * advantages)
+        #cross_entropy = K.log(action_prob + 1e-10) * advantages
         cross_entropy = -K.sum(cross_entropy)
 
         # 탐색을 지속적으로 하기 위한 엔트로피 오류
         #entropy = K.sum(policy * K.log(policy/(old_policy + 1e-10)), axis=1)
-        entropy = K.sum(policy * K.log(old_policy + 1e-10), axis=1)
+        entropy = K.sum(policy * K.log(policy + 1e-10), axis=1)
         entropy = K.sum(entropy)
 
+        kl = K.sum(policy * K.log(policy/(old_policy + 1e-10)), axis=1)
+
         # 두 오류함수를 더해 최종 오류함수를 만듬
-        loss = cross_entropy + 0.01 * entropy
+        loss = cross_entropy + 10 * kl + 0.01 * entropy
 
         optimizer = RMSprop(lr=self.actor_lr)
         updates = optimizer.get_updates(self.actor.trainable_weights, [],loss)
@@ -662,7 +665,7 @@ class Agent(threading.Thread):
 
         self.target = (16300, 1.55)
 
-        self.epsilon = 0.0
+        self.epsilon = 1.0
         self.epsilon_decay =0.999
 
         self.pre_actions = np.zeros(self.action_size)
@@ -682,7 +685,7 @@ class Agent(threading.Thread):
         self.avg_loss = 0
 
         # 모델 업데이트 주기
-        self.t_max = 15
+        self.t_max = 10
         self.t = 0
 
         self.T = 0
@@ -930,17 +933,18 @@ class Agent(threading.Thread):
 
                     reward = ((10 * (min(self.target[0], current_cl) - min(self.target[0], pre_cl)) / cl_base + \
                               10 * (max(self.target[1], pre_fxy)    - max(self.target[1], current_fxy)) / fxy_base)/4)
-                    """
-                    reward = (10 * (min(current_cl - self.target[0], 0)) / cl_base + \
-                              10 * (min(self.target[1] - current_fxy, 0)) / fxy_base)/4
-                    """
                     reward = reward*abs(reward)
+
+                    reward_s = (10 * (min(current_cl - self.target[0], 0)) / cl_base + \
+                              10 * (min(self.target[1] - current_fxy, 0)) / fxy_base)/4
+
+
 
                     #r_in = get_reward_intrinsic(self.icm, self.r_in,  )
                     one_hot_action = np.zeros(self.spaces.action_space.shape)
                     one_hot_action[action] = 1
                     r_in = self.icm2.predict([history_output, next_history_output, np.array([one_hot_action])])[0]
-                    #r_in = 0
+                    r_in_s = 0
                     # 정책의 최대값
                     self.avg_p_max += np.amax(self.actor.predict([history, history_output]))
 
@@ -951,9 +955,11 @@ class Agent(threading.Thread):
                     # score_addup
                     score += reward
 
-                    #r_in = np.clip(r_in, 0, 1)
+                    r_in_s = np.clip(r_in_s, 0, 1)
 
                     reward = np.clip(reward, -1., 1.)
+
+                    reward_s = np.clip(reward_s, -1., 1.)
 
                     self.t += 1
                     if changed:
@@ -990,7 +996,8 @@ class Agent(threading.Thread):
                                       value.input_tensor_full,
                                       value.output_tensor,
                                       value.flux_tensor,
-                                      value.density_tensor_full]
+                                      value.density_tensor_full,
+                                      value.iinput_tensor_full]
                             dump_list.append(a_list)
 
                         values3 = self.critic.predict([history, history_output])[0]
@@ -1007,6 +1014,7 @@ class Agent(threading.Thread):
                               "{:3.2f} |".format(current_cl),
                               "{:3.2f} |".format(current_fxy),
                               "{:3.2f} |".format(non_clipped),
+                              "{:3.2f} |".format(reward_s),
                               "{:3.2f} |".format(r_in),
                               "{:1.4f} |".format(values[0]),
                               "{:1.4f} |".format(values3[0]),
@@ -1036,11 +1044,9 @@ class Agent(threading.Thread):
                                        next_history_output,
                                        policy,
                                        next_policy,
-                                       0)
+                                       r_in_s,
+                                       reward_s)
 
-                    self.n_states, self.n_actions, self.n_rewards, self.n_next_states, self.n_outputs, self.n_next_outputs = [], [], [], [], [], []
-                    self.n_policies = []
-                    self.n_next_policies = []
 
                     if best_cl <= current_cl and best_fxy >= current_fxy:
                         best_cl = min(self.target[0], current_cl)
@@ -1060,22 +1066,26 @@ class Agent(threading.Thread):
                         #print("{}".format(self.thread_id), ' '.join('{:3d}'.format(np.argmax(k)) for k in self.n_actions))
                         #print("{}".format(self.thread_id), ' '.join('{:3d}'.format(int(k*100)) for k in self.n_rewards))
 
+                        n_o1, n_o2, n_o3 = self.train_n_model(False)
                         if len(self.states)>=1:
                             o1, o2, o3 = self.train_model(False)
                             self.optimizer[0](o1)
                             self.optimizer[1](o2)
                             self.optimizer[2](o3)
 
-                        for n_o in n_trainable:
-                            self.optimizer[0](n_o[0])
-                            self.optimizer[3](n_o[1])
-                            self.optimizer[2](n_o[2])
+                        self.optimizer[0](n_o1)
+                        self.optimizer[3](n_o2)
+                        self.optimizer[2](n_o3)
 
                         n_trainable = []
 
                         self.states, self.actions, self.rewards, self.next_states, self.outputs, self.next_outputs = [], [], [], [], [], []
                         self.policies = []
                         self.next_policies = []
+
+                        self.n_states, self.n_actions, self.n_rewards, self.n_next_states, self.n_outputs, self.n_next_outputs = [], [], [], [], [], []
+                        self.n_policies = []
+                        self.n_next_policies = []
 
                         self.update_local_model()
                         self.t = 0
@@ -1299,7 +1309,6 @@ class Agent(threading.Thread):
                            self.spaces.observation_space.shape[1],
                            self.spaces.observation_space.shape[2]))
 
-
         for i in range(len(self.n_states)):
             states[i] = self.n_states[i]
 
@@ -1428,6 +1437,174 @@ class Agent(threading.Thread):
                [next_states, next_outputs, np.array(self.n_actions), reversed_advantages, np.array(self.n_next_policies)],\
                [next_states, next_outputs, reversed_discounted_prediction]
         """
+
+    # 정책신경망과 가치신경망을 업데이트
+    def train_n_model_r(self, done):
+
+        states = np.zeros((len(self.states)+len(self.n_states),
+                           self.spaces.observation_space.shape[0],
+                           self.spaces.observation_space.shape[1],
+                           self.spaces.observation_space.shape[2]))
+
+        for i in range(len(self.states)):
+            states[i] = self.states[i]
+
+        for i in range(len(self.n_states)):
+            states[len(self.states)+i] = self.n_states[i]
+
+        states = np.float32(states)
+
+        next_states = np.zeros((len(self.next_states)+len(self.n_next_states),
+                                self.spaces.observation_space.shape[0],
+                                self.spaces.observation_space.shape[1],
+                                self.spaces.observation_space.shape[2]))
+
+        for i in range(len(self.next_states)):
+            next_states[i] = self.next_states[i]
+
+        for i in range(len(self.n_next_states)):
+            next_states[len(self.next_states)+i] = self.n_next_states[i]
+
+        next_states = np.float32(next_states)
+
+        outputs = np.zeros((len(self.outputs)+len(self.n_outputs), 500))
+
+        for i in range(len(self.outputs)):
+            outputs[i] = self.outputs[i]
+
+        for i in range(len(self.n_outputs)):
+            outputs[len(self.outputs)+i] = self.n_outputs[i]
+
+        outputs = np.float32(outputs)
+
+        next_outputs = np.zeros((len(self.next_outputs)+len(self.n_next_outputs), 500))
+
+        for i in range(len(self.next_outputs)):
+            next_outputs[i] = self.next_outputs[i]
+
+        for i in range(len(self.n_next_outputs)):
+            next_outputs[len(self.next_outputs)+i] = self.n_next_outputs[i]
+
+        next_outputs = np.float32(next_outputs)
+
+        d_rewards = copy.deepcopy(self.rewards)
+
+        for reward in self.n_rewards:
+            d_rewards.append(reward)
+
+        for index in range(len(d_rewards)):
+            d_rewards[index] = self.n_rewards[-1]
+
+        d_next_states = copy.deepcopy(self.next_states)
+
+        for next_state in self.n_next_states:
+            d_next_states.append(next_state)
+
+        d_next_outputs = copy.deepcopy(self.next_outputs)
+
+        for next_output in self.n_next_outputs:
+            d_next_outputs.append(next_output)
+
+        discounted_prediction = self.n_discounted_prediction(d_rewards, done, d_next_states,
+                                                             d_next_outputs)
+
+        values = self.critic.predict([states, outputs])
+        values = np.reshape(values, len(values))
+
+        advantages = discounted_prediction - values
+
+        # print("{}".format(selwlsduf.thread_id), "dis_n",' '.join('{:1.2f}'.format(k) for k in discounted_prediction))
+        # print("{}".format(self.thread_id), "val_n",' '.join('{:1.2f}'.format(k) for k in values))
+
+        policy = self.actor.predict([states, outputs])
+        old_policy = np.array(self.n_policies)
+        action_prob = np.sum(np.array(self.n_actions) * policy, axis=1)
+        old_action_prob = np.sum(np.array(self.n_actions) * old_policy, axis=1)
+        cross_entropy = action_prob / (old_action_prob + 1e-10)
+        log_cross_entropy = np.log(action_prob + 1e-10)
+        entropy = np.sum(policy * np.log((policy / (old_policy + 1e-10))), axis=1)
+
+        # print("{}".format(self.thread_id), "n_x_ent    ", ' '.join('{:1.3f}'.format(k) for k in cross_entropy))
+        # print("{}".format(self.thread_id), "n_log_x_ent", ' '.join('{:1.3f}'.format(k) for k in log_cross_entropy))
+        # print("{}".format(self.thread_id), "n_ent      ", ' '.join('{:1.3f}'.format(k) for k in entropy))
+
+        """
+        if len(self.rewards) >2:
+            reversed_discounted_prediction = self.discounted_prediction(self.rewards[:-1], done, self.states, self.outputs)
+
+            reversed_values = self.critic.predict([next_states[1:], next_outputs[1:]])
+            reversed_values = np.reshape(reversed_values, len(reversed_values))
+
+            reversed_advantages = reversed_discounted_prediction - reversed_values
+
+            print("{}".format(self.thread_id), ' '.join('{:1.2f}'.format(k) for k in reversed_discounted_prediction))
+            print("{}".format(self.thread_id), ' '.join('{:1.2f}'.format(k) for k in reversed_values))
+
+            self.optimizer[0]([next_states[1:], next_outputs[1:], np.array(self.actions[1:]), reversed_advantages])
+            self.optimizer[1]([next_states[1:], next_outputs[1:], reversed_discounted_prediction])
+        """
+
+        reversed_discounted_prediction = self.n_discounted_prediction(self.n_rewards, done, self.n_states,
+                                                                      self.n_outputs, True)
+
+        reversed_values = self.n_critic.predict([next_states, next_outputs])
+        reversed_values = np.reshape(reversed_values, len(reversed_values))
+
+        reversed_advantages = reversed_discounted_prediction - reversed_values
+
+        # print("{}".format(self.thread_id),  ' '.join('{:1.2f}'.format(k) for k in reversed_discounted_prediction))
+        # print("{}".format(self.thread_id), ' '.join('{:1.2f}'.format(k) for k in reversed_values))
+
+        """
+        if len(states)>2:
+
+            reversed_reward = []
+
+            for reward in reversed(self.rewards[:-1]):
+                reversed_reward.append(reward)
+
+            reversed_discounted_prediction = self.discounted_prediction(reversed_reward, False,
+                                                                        list(reversed(self.states[1:])),
+                                                                        list(reversed(self.outputs[1:])))
+
+            reversed_states = np.zeros((len(self.states) - 1,
+                                        self.spaces.observation_space.shape[0],
+                                        self.spaces.observation_space.shape[1],
+                                        self.spaces.observation_space.shape[2]))
+
+            for i, state in enumerate(list(reversed(self.states[1:]))):
+                reversed_states[i] = state
+
+            reversed_outputs = np.zeros((len(self.outputs)-1, 500))
+
+            for i, output in enumerate(list(reversed(self.outputs[1:]))):
+                reversed_outputs[i] = output
+
+            reversed_outputs = np.float32(reversed_outputs)
+
+            reversed_states = np.float32(reversed_states)
+
+            reversed_values = self.critic.predict([reversed_states, reversed_outputs])
+            reversed_values = np.reshape(reversed_values, len(reversed_values))
+
+            reversed_advantages = reversed_discounted_prediction - reversed_values
+
+            print("{}".format(self.thread_id), ' '.join('{:1.2f}'.format(k) for k in reversed_discounted_prediction))
+            print("{}".format(self.thread_id), ' '.join('{:1.2f}'.format(k) for k in reversed_values))
+
+            self.optimizer[0]([reversed_states, reversed_outputs, np.array(list(reversed(self.actions[:-1]))), reversed_advantages])
+            self.optimizer[1]([reversed_states, reversed_outputs, reversed_discounted_prediction])
+        """
+
+        # self.icm.train_on_batch([states, next_states, np.array(self.actions),dddd], np.zeros((length_state,)))
+
+        return [states, outputs, np.array(self.n_actions), advantages, np.array(self.n_policies)], \
+               [states, outputs, discounted_prediction], \
+               [outputs, next_outputs, np.array(self.n_actions), np.array(discounted_prediction).reshape(-1, 1)],
+        """
+               [next_states, next_outputs, np.array(self.n_actions), reversed_advantages, np.array(self.n_next_policies)],\
+               [next_states, next_outputs, reversed_discounted_prediction]
+        """
     # 로컬신경망을 생성하는 함수
     def build_local_model(self):
         input = Input(shape=self.state_size, name="xs_input")
@@ -1520,7 +1697,7 @@ class Agent(threading.Thread):
 
 
     # 샘플을 저장
-    def append_sample(self, history, action, reward, next_history, output, next_output, policy, next_policy, r_in):
+    def append_sample(self, history, action, reward, next_history, output, next_output, policy, next_policy, r_in, reward_s):
 
         self.n_states.append(history)
         self.n_next_states.append(next_history)
@@ -1540,7 +1717,7 @@ class Agent(threading.Thread):
         act[posibilities*self.spaces.action_space.shapes[0]+position] = 1
         """
         self.n_actions.append(act)
-        self.n_rewards.append(np.clip(reward+r_in, -1, 1))
+        self.n_rewards.append(np.clip(reward_s+r_in, -1, 1))
 
         if reward >= 0:
             self.states.append(history)
@@ -1561,7 +1738,7 @@ class Agent(threading.Thread):
             act[posibilities*self.spaces.action_space.shapes[0]+position] = 1
             """
             self.actions.append(act)
-            self.rewards.append(np.clip(reward+r_in, -1, 1))
+            self.rewards.append(np.clip(reward_s+r_in, -1, 1))
 
 if __name__ == "__main__":
     global_agent = A3CAgent()

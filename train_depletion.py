@@ -240,6 +240,35 @@ def identity_block_se_lk(X, f, filters, stage, block):
     return X
 
 
+def identity_block_se_lk_nb(X, f, filters, stage, block):
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+    F1, F2, F3 = filters
+
+    X_shortcut = X
+
+    X = Conv2D(filters=F1, kernel_size=(1, 1), strides=(1, 1), padding='valid', name=conv_name_base + '2a',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = LeakyReLU()(X)
+
+    X = Conv2D(filters=F2, kernel_size=(f, f), strides=(1, 1), padding='same', name=conv_name_base + '2b',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = LeakyReLU()(X)
+
+    X = Conv2D(filters=F3, kernel_size=(1, 1), strides=(1, 1), padding='valid', name=conv_name_base + '2c',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+
+    se = GlobalAveragePooling2D(name='pool' + bn_name_base + '_gap')(X)
+    se = Dense(F3 // 16, activation='relu', name = 'fc' + bn_name_base + '_sqz')(se)
+    se = Dense(F3, activation='sigmoid', name = 'fc' + bn_name_base + '_exc')(se)
+    se = Reshape([1, 1, F3])(se)
+    X = Multiply(name='scale' + bn_name_base)([X, se])
+
+    X = Add()([X, X_shortcut])
+    X = LeakyReLU()(X)
+
+    return X
 
 def identity_block_se_l(X, f, filters, stage, block):
     conv_name_base = 'res' + str(stage) + block + '_branch'
@@ -632,6 +661,40 @@ def convolution_block_se_l(X, f, filters, stage, block, s=2):
 
     X = Add()([X_shortcut, X])
     X = Activation("relu")(X)
+
+    return X
+
+
+def convolution_block_se_lk_nb(X, f, filters, stage, block, s=2):
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+    F1, F2, F3 = filters
+
+    X_shortcut = X
+
+    X = Conv2D(filters=F1, kernel_size=(1, 1), strides=(s, s), padding='valid', name=conv_name_base + '2a',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = LeakyReLU()(X)
+
+    X = Conv2D(filters=F2, kernel_size=(f, f), strides=(1, 1), padding='same', name=conv_name_base + '2b',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = LeakyReLU()(X)
+
+    X = Conv2D(filters=F3, kernel_size=(1, 1), strides=(1, 1), padding='valid', name=conv_name_base + '2c',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+
+    se = GlobalAveragePooling2D(name='pool' + bn_name_base + '_gap')(X)
+    se = Dense(F3*4, activation='relu', name = 'fc' + bn_name_base + '_sqz')(se)
+    se = Dense(F3, activation='sigmoid', name = 'fc' + bn_name_base + '_exc')(se)
+    se = Reshape([1, 1, F3])(se)
+    X = Multiply(name='scale' + bn_name_base)([X, se])
+
+    X_shortcut = Conv2D(filters=F3, kernel_size=(1, 1), strides=(s, s), padding='valid', name=conv_name_base + '1',
+                        kernel_initializer=glorot_uniform(seed=0))(X_shortcut)
+
+    X = Add()([X_shortcut, X])
+    X = LeakyReLU()(X)
 
     return X
 
@@ -1517,6 +1580,7 @@ def ResNetI7_Good_depl_MD(input_shape = (64, 64, 3), classes = 6):
     return model
 
 
+
 def ResNetI7_Good_depl_pre(input_shape = (19, 19, 8), pre_input_shape = (19, 19, 16), pre_value_shape = (1,),  classes = 6):
 
     X_input = Input(input_shape)
@@ -1667,7 +1731,7 @@ def ResNetI7_Good_depl_time_xs(input_shape = (19, 19, 9),  classes = 6):
 
     return bs_model_real
 
-def ResNetI7_Good_depl_(input_shape = (64, 64, 3), classes = 6):
+def ResNetI7_Good_depl_MD_LK(input_shape = (64, 64, 3), classes = 6):
 
     X_input = Input(input_shape)
     stage = 0;
@@ -1688,6 +1752,26 @@ def ResNetI7_Good_depl_(input_shape = (64, 64, 3), classes = 6):
 
     return model
 
+def ResNetI7_Good_depl_MD_LK_NB(input_shape = (64, 64, 3), classes = 6):
+
+    X_input = Input(input_shape)
+    stage = 0;
+
+    for i in range(10):
+        stage_filters = [64, 64, 256]
+        X = convolution_block_se_lk_nb(X_input, f = 3, filters = stage_filters, stage = stage, block='ca_{}'.format(i), s = 1)
+        X = identity_block_se_lk_nb(X, 3, stage_filters, stage=stage, block ='cb_{}'.format(i))
+        X = identity_block_se_lk_nb(X, 3, stage_filters, stage=stage, block='cc_{}'.format(i))
+        stage = stage + 1
+
+    X = Flatten()(X)
+    X = Dense(3000, name='cfc' + str(classes) + str(3), kernel_initializer=glorot_uniform(seed=0))(X)
+    X = Dense(1000, name='cfc' + str(classes) + str(2), kernel_initializer=glorot_uniform(seed=0))(X)
+    X = Dense(classes, name='cfc' + str(classes) + str(1), kernel_initializer=glorot_uniform(seed=0))(X)
+
+    model = Model(inputs = [X_input], outputs = X, name = "ResNetCen")
+
+    return model
 
 def ResNetI7_Good_depl_1D(input_shape = (64, 64, 3), classes = 6):
 
@@ -2279,6 +2363,8 @@ def train_all_depl(iter_numb, model, include = ["y3"], exclude = ["y314"], folde
                 pass
 
         model.save_weights("weights-SEP-DEPL-1-{}-{}.hdf5".format(iter_numb, x_man))
+
+
 
 
 def train_all_depl_pre(iter_numb, model, include=["y3"], exclude=["y314"], folders=["/media/youndukn/lastra/plants_data/"],
@@ -4637,7 +4723,7 @@ if __name__ == "__main__":
                                            ["/media/youndukn/lastra/plants_data4/"],
                                            True)
     """
-
+    """
     pre_weights = False
     pre_shuffle = False
     ps_model, xs_model_real, xs_model, bs_model_real, bs_model  = ResNetI7_Good_depl_time_r((19, 19, 28), classes=1)
@@ -4696,7 +4782,7 @@ if __name__ == "__main__":
                                          "data_8", "data_9", "data_10", "data_11", "data_12"],
                                         ["/media/youndukn/lastra/plants_data4/"],
                                         True)
-
+    """
 
 
     """
@@ -4812,8 +4898,8 @@ if __name__ == "__main__":
         pre_model.save_weights("01_u4_y3_y311_ny314_pre.hdf5")
         train_model.save_weights("01_u4_y3_y311_ny314_rnn.hdf5")
     """
-    """
-    model = ResNetI7_Good_depl_MD_lk((19, 19, 28), classes=1)
+
+    model = ResNetI7_Good_depl_MD_LK_NB((15, 15, 6), classes=2)
     # shuffle_data_depl()
 
     model.compile(loss='mse', optimizer=Adam(lr=0.00025))
@@ -4827,15 +4913,15 @@ if __name__ == "__main__":
                                "/media/youndukn/lastra/depl_3/",
                                "/media/youndukn/lastra/depl_4/",
                                "/media/youndukn/lastra/plants_data/"],
-                              True)
+                              False)
         print_all_weights_depl(0, model,
                                ["y310", "y314"],
                                ["data_1", "data_2", "data_3", "data_4", "data_5", "data_6"],
                                ["/media/youndukn/lastra/plants_data/"],
-                               True)
+                               False)
 
     model.save_weights("01_u4_y3_y311_ny314_se_MD_lk.hdf5")
-    """
+
     """
     model = ResNetI7_Good_depl_MD_lk((19, 19, 28), classes = 1)
     #shuffle_data_depl()

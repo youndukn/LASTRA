@@ -28,7 +28,32 @@ class AstraOutputReader:
     xss_o_block = 16
     f2d_block = 17
     f2d_o_block = 18
-
+    iabs_block = 19
+    infi_block = 20
+    ixss_block = 21
+    iabs_o_block = 22
+    infi_o_block = 23
+    ixss_o_block = 24
+    iabsn_block = 25
+    infin_block = 26
+    ixssn_block = 27
+    iabsn_o_block = 28
+    infin_o_block = 29
+    ixssn_o_block = 30
+    peak_block = 31
+    p2dn_block = 32
+    p3dn_block = 33
+    p3d_block = 34
+    i3absn_block = 35
+    i3nfin_block = 36
+    i3xssn_block = 37
+    i3absn_o_block = 38
+    i3nfin_o_block = 39
+    i3xssn_o_block = 40
+    """
+    isotope_start_block = 41
+    isotope_end_block = isotope_start_block+20
+    """
     def __init__(self, output_name=None, output_string=None):
         """
         Define all blocks to be used in blocks
@@ -59,47 +84,71 @@ class AstraOutputReader:
             AstraOutputValueBlock("XSSC2D", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
             AstraOutputCoreBlock("F2D", ["Y/X"]),
             AstraOutputValueBlock("F2D", ["LINE  1: GROUP  1", "LINE  2: GROUP  2"]),
-            AstraOutputCoreBlock("U2342D", ["Y/X"]),
-            AstraOutputCoreBlock("U2352D", ["Y/X"]),
-            AstraOutputCoreBlock("U2362D", ["Y/X"]),
-            AstraOutputCoreBlock("NP372D", ["Y/X"]),
-            AstraOutputCoreBlock("U2382D", ["Y/X"]),
-            AstraOutputCoreBlock("NP392D", ["Y/X"]),
-            AstraOutputCoreBlock("PU402D", ["Y/X"]),
-            AstraOutputCoreBlock("PU412D", ["Y/X"]),
-            AstraOutputCoreBlock("PU422D", ["Y/X"]),
-            AstraOutputCoreBlock("AM432D", ["Y/X"]),
-            AstraOutputCoreBlock("PM472D", ["Y/X"]),
-            AstraOutputCoreBlock("PS482D", ["Y/X"]),
-            AstraOutputCoreBlock("PM482D", ["Y/X"]),
-            AstraOutputCoreBlock("PM492D", ["Y/X"]),
-            AstraOutputCoreBlock("I1352D", ["Y/X"]),
-            AstraOutputCoreBlock("XE452D", ["Y/X"]),
-            AstraOutputCoreBlock("FP.12D", ["Y/X"]),
-            AstraOutputCoreBlock("B-102D", ["Y/X"]),
-            AstraOutputCoreBlock("H2O2D", ["Y/X"]),
-            AstraOutputCoreBlock("DETE2D", ["Y/X"]),
-            AstraOutputValueBlock("U2342D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("U2352D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("U2362D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("NP372D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("U2382D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("NP392D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("PU402D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("PU412D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("PU422D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("AM432D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("PM472D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("PS482D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("PM482D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("PM492D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("I1352D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("XE452D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("FP.12D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("B-102D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("H2O2D", ["DISTRIBUTION"]),
-            AstraOutputValueBlock("DETE2D", ["DISTRIBUTION"])
+            AstraOutputCoreBlock("IXSAB2D", ["Y/X"]),
+            AstraOutputCoreBlock("IXSNF2D", ["Y/X"]),
+            AstraOutputCoreBlock("IXSSC2D", ["Y/X"]),
+            AstraOutputValueBlock("IXSAB2D", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
+            AstraOutputValueBlock("IXSNF2D", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
+            AstraOutputValueBlock("IXSSC2D", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
+            AstraOutputCoreBlock("IXSAB2DN", ["Y/X"]),
+            AstraOutputCoreBlock("IXSNF2DN", ["Y/X"]),
+            AstraOutputCoreBlock("IXSSC2DN", ["Y/X"]),
+            AstraOutputValueBlock("IXSAB2DN", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
+            AstraOutputValueBlock("IXSNF2DN", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
+            AstraOutputValueBlock("IXSSC2DN", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
+            AstraOutputCoreBlock("PEAK", ["Y/X"]),
+            AstraOutputCoreBlock("P2DN", ["Y/X"]),
+            AstraOutputCoreBlock("P3DN", ["Y/X"]),
+            AstraOutputCoreBlock("P3D", ["Y/X"]),
+            AstraOutputCoreBlock("IXSAB3DN", ["Y/X"]),
+            AstraOutputCoreBlock("IXSNF3DN", ["Y/X"]),
+            AstraOutputCoreBlock("IXSSC3DN", ["Y/X"]),
+            AstraOutputValueBlock("IXSAB3DN", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
+            AstraOutputValueBlock("IXSNF3DN", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
+            AstraOutputValueBlock("IXSSC3DN", ["FIRST  LINE: GROUP 1", "SECOND LINE: GROUP 2"]),
         ]
+        """
+        AstraOutputCoreBlock("U2342D", ["Y/X"]),
+        AstraOutputCoreBlock("U2352D", ["Y/X"]),
+        AstraOutputCoreBlock("U2362D", ["Y/X"]),
+        AstraOutputCoreBlock("NP372D", ["Y/X"]),
+        AstraOutputCoreBlock("U2382D", ["Y/X"]),
+        AstraOutputCoreBlock("NP392D", ["Y/X"]),
+        AstraOutputCoreBlock("PU402D", ["Y/X"]),
+        AstraOutputCoreBlock("PU412D", ["Y/X"]),
+        AstraOutputCoreBlock("PU422D", ["Y/X"]),
+        AstraOutputCoreBlock("AM432D", ["Y/X"]),
+        AstraOutputCoreBlock("PM472D", ["Y/X"]),
+        AstraOutputCoreBlock("PS482D", ["Y/X"]),
+        AstraOutputCoreBlock("PM482D", ["Y/X"]),
+        AstraOutputCoreBlock("PM492D", ["Y/X"]),
+        AstraOutputCoreBlock("I1352D", ["Y/X"]),
+        AstraOutputCoreBlock("XE452D", ["Y/X"]),
+        AstraOutputCoreBlock("FP.12D", ["Y/X"]),
+        AstraOutputCoreBlock("B-102D", ["Y/X"]),
+        AstraOutputCoreBlock("H2O2D", ["Y/X"]),
+        AstraOutputCoreBlock("DETE2D", ["Y/X"]),
+        AstraOutputValueBlock("U2342D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("U2352D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("U2362D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("NP372D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("U2382D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("NP392D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("PU402D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("PU412D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("PU422D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("AM432D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("PM472D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("PS482D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("PM482D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("PM492D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("I1352D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("XE452D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("FP.12D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("B-102D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("H2O2D", ["DISTRIBUTION"]),
+        AstraOutputValueBlock("DETE2D", ["DISTRIBUTION"])
+        """
         """
         # output block to parse 3D
         self.blocks = [
@@ -321,7 +370,12 @@ class AstraOutputReader:
 
         if not summary_bool:
             if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:
-                print(self.blocks[AstraOutputReader.warn_block].dictionary)
+                if len(self.blocks[AstraOutputReader.error_block].dictionary) > 0:
+                    value = str(self.blocks[AstraOutputReader.error_block].dictionary)
+                    print(value[:100])
+                if len(self.blocks[AstraOutputReader.warn_block].dictionary) > 0:
+                    value = str(self.blocks[AstraOutputReader.warn_block].dictionary)
+                    print(value[:100])
                 return None, False, False
             return None, False, False
 
@@ -331,7 +385,8 @@ class AstraOutputReader:
             return None, False, False
 
         if len(self.blocks[AstraOutputReader.warn_block].dictionary) > 0:
-            #print(self.blocks[AstraOutputReader.warn_block].dictionary)
+            #value = str(self.blocks[AstraOutputReader.warn_block].dictionary)
+            #print(value[:100])
             return self.get_cross_power_density_parameters(), False, True
 
         return self.get_cross_power_density_parameters(), True, True
@@ -402,32 +457,49 @@ class AstraOutputReader:
         burnup_len = len(self.blocks[AstraOutputReader.abs_block].cores)
         final_xs = []
 
+        numb_plane = 26
+        p_numb_plane = 28
+
+
         for i in range(burnup_len):
             densities = []
-
-            for j in range(19, 39):
+            """
+            for j in range(self.isotope_start_block, self.isotope_end_block):
                 density = self.blocks[j].cores[i]
                 density_o1 = float(self.blocks[j+20].value_dict["DISTRIBUTION"][i].replace("(","").replace( " #/BARN-CM)", ""))
                 setattr(density, "o1", density_o1)
                 densities.append(density)
-
+            """
+            b2d_core = self.blocks[AstraOutputReader.b2d_block].cores[i]
             f2d_core = self.blocks[AstraOutputReader.f2d_block].cores[i]
             p2d_core = self.blocks[AstraOutputReader.p2d_block].cores[i]
+            peak_core = self.blocks[AstraOutputReader.peak_block].cores[i]
+            p2dn_core = self.blocks[AstraOutputReader.p2dn_block].cores[i]
             abs_core = self.blocks[AstraOutputReader.abs_block].cores[i]
             nfi_core = self.blocks[AstraOutputReader.nfi_block].cores[i]
             sc1_core = self.blocks[AstraOutputReader.xss_block].cores[i*2]
             sc2_core = self.blocks[AstraOutputReader.xss_block].cores[i*2+1]
-
-            f2d_o1 = float(self.blocks[AstraOutputReader.f2d_o_block].value_dict["LINE  1: GROUP  1"][i].replace("(","").replace( ")", ""))
-            f2d_o2 = float(self.blocks[AstraOutputReader.f2d_o_block].value_dict["LINE  2: GROUP  2"][i].replace("(", "").replace( ")", ""))
-            abs_o1 = float(self.blocks[AstraOutputReader.abs_o_block].value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
-            abs_o2 = float(self.blocks[AstraOutputReader.abs_o_block].value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
-            nfi_o1 = float(self.blocks[AstraOutputReader.nfi_o_block].value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
-            nfi_o2 = float(self.blocks[AstraOutputReader.nfi_o_block].value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
-            sc1_o1 = float(self.blocks[AstraOutputReader.xss_o_block].value_dict["FIRST  LINE: GROUP 1"][i*2].replace("(", "").replace(")", ""))
-            sc1_o2 = float(self.blocks[AstraOutputReader.xss_o_block].value_dict["SECOND LINE: GROUP 2"][i*2].replace("(", "").replace(")", ""))
-            sc2_o1 = float(self.blocks[AstraOutputReader.xss_o_block].value_dict["FIRST  LINE: GROUP 1"][i*2+1].replace("(", "").replace(")", ""))
-            sc2_o2 = float(self.blocks[AstraOutputReader.xss_o_block].value_dict["SECOND LINE: GROUP 2"][i*2+1].replace("(", "").replace(")", ""))
+            
+            f2d_o1 = float(self.blocks[AstraOutputReader.f2d_o_block].
+                           value_dict["LINE  1: GROUP  1"][i].replace("(","").replace( ")", ""))
+            f2d_o2 = float(self.blocks[AstraOutputReader.f2d_o_block].
+                           value_dict["LINE  2: GROUP  2"][i].replace("(", "").replace( ")", ""))
+            abs_o1 = float(self.blocks[AstraOutputReader.abs_o_block].
+                           value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
+            abs_o2 = float(self.blocks[AstraOutputReader.abs_o_block].
+                           value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
+            nfi_o1 = float(self.blocks[AstraOutputReader.nfi_o_block].
+                           value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
+            nfi_o2 = float(self.blocks[AstraOutputReader.nfi_o_block].
+                           value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
+            sc1_o1 = float(self.blocks[AstraOutputReader.xss_o_block].
+                           value_dict["FIRST  LINE: GROUP 1"][i*2].replace("(", "").replace(")", ""))
+            sc1_o2 = float(self.blocks[AstraOutputReader.xss_o_block].
+                           value_dict["SECOND LINE: GROUP 2"][i*2].replace("(", "").replace(")", ""))
+            sc2_o1 = float(self.blocks[AstraOutputReader.xss_o_block].
+                           value_dict["FIRST  LINE: GROUP 1"][i*2+1].replace("(", "").replace(")", ""))
+            sc2_o2 = float(self.blocks[AstraOutputReader.xss_o_block].
+                           value_dict["SECOND LINE: GROUP 2"][i*2+1].replace("(", "").replace(")", ""))
 
             setattr(f2d_core, "g1", f2d_o1)
             setattr(f2d_core, "g2", f2d_o2)
@@ -440,84 +512,104 @@ class AstraOutputReader:
             setattr(sc2_core, "g1", sc2_o1)
             setattr(sc2_core, "g2", sc2_o2)
 
-            final_xs.append(([summary[i, 1],
-                              summary[i, 3],
-                              summary[i, 6],
-                              summary[i, 8],
-                              summary[i, 9],
-                              summary[i, 10],
-                              summary[i, 11]],
-                             abs_core, nfi_core, sc1_core, sc2_core, p2d_core, f2d_core, densities))
+            iabs_core = self.blocks[AstraOutputReader.iabs_block].cores[i]
+            infi_core = self.blocks[AstraOutputReader.infi_block].cores[i]
+            isc1_core = self.blocks[AstraOutputReader.ixss_block].cores[i]
 
-        return final_xs
+            iabs_o1 = float(self.blocks[AstraOutputReader.iabs_o_block].
+                value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
+            iabs_o2 = float(self.blocks[AstraOutputReader.iabs_o_block].
+                value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
+            infi_o1 = float(self.blocks[AstraOutputReader.infi_o_block].
+                value_dict["FIRST  LINE: GROUP 1"][i].replace("(","").replace( ")", ""))
+            infi_o2 = float(self.blocks[AstraOutputReader.infi_o_block].
+                value_dict["SECOND LINE: GROUP 2"][i].replace("(","").replace(")", ""))
+            isc1_o1 = float(self.blocks[AstraOutputReader.ixss_o_block].
+                value_dict["FIRST  LINE: GROUP 1"][i].replace("(","").replace(")", ""))
+            isc1_o2 = float(self.blocks[AstraOutputReader.ixss_o_block].
+                value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
 
-    def get_cross_power_3D_parameters(self):
+            setattr(iabs_core, "g1", iabs_o1)
+            setattr(iabs_core, "g2", iabs_o2)
+            setattr(infi_core, "g1", infi_o1)
+            setattr(infi_core, "g2", infi_o2)
+            setattr(isc1_core, "g1", isc1_o1)
+            setattr(isc1_core, "g2", isc1_o2)
 
-        summary = self.get_summary()
-        summary = np.array(summary)
 
-        burnup_len = len(self.blocks[AstraOutputReader.abs_block].cores)
+            iabsn_core = self.blocks[AstraOutputReader.iabsn_block].cores[i]
+            infin_core = self.blocks[AstraOutputReader.infin_block].cores[i]
+            isc1n_core = self.blocks[AstraOutputReader.ixssn_block].cores[i]
 
-        final_xs = []
+            iabsn_o1 = float(self.blocks[AstraOutputReader.iabsn_o_block].
+                value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
+            iabsn_o2 = float(self.blocks[AstraOutputReader.iabsn_o_block].
+                value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
+            infin_o1 = float(self.blocks[AstraOutputReader.infin_o_block].
+                value_dict["FIRST  LINE: GROUP 1"][i].replace("(","").replace( ")", ""))
+            infin_o2 = float(self.blocks[AstraOutputReader.infin_o_block].
+                value_dict["SECOND LINE: GROUP 2"][i].replace("(","").replace(")", ""))
+            isc1n_o1 = float(self.blocks[AstraOutputReader.ixssn_o_block].
+                value_dict["FIRST  LINE: GROUP 1"][i].replace("(","").replace(")", ""))
+            isc1n_o2 = float(self.blocks[AstraOutputReader.ixssn_o_block].
+                value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
 
-        numb_plane = 26
-        p_numb_plane = 24
+            setattr(iabsn_core, "g1", iabsn_o1)
+            setattr(iabsn_core, "g2", iabsn_o2)
+            setattr(infin_core, "g1", infin_o1)
+            setattr(infin_core, "g2", infin_o2)
+            setattr(isc1n_core, "g1", isc1n_o1)
+            setattr(isc1n_core, "g2", isc1n_o2)
 
-        for i in range(int(burnup_len/numb_plane)):
-            densities = []
-
-            abs_cores = []
-            nfi_cores = []
-            sc1_cores = []
-            sc2_cores = []
-            p3d_cores = []
-            f2d_cores = []
-            """
-            for j in range(19, 39):
-                density = self.blocks[j].cores[i]
-                density_o1 = float(self.blocks[j+20].value_dict["DISTRIBUTION"][i].replace("(","").replace( " #/BARN-CM)", ""))
-                setattr(density, "o1", density_o1)
-                densities.append(density)
-            """
+            p3dn_cores = []
 
             for j in range(numb_plane):
-                if j >= p_numb_plane:
-                    p_index = i * p_numb_plane + j-2
-                else:
-                    p_index = i * p_numb_plane + j
-                r_index = i * numb_plane + j
-                s_index = i*numb_plane*2+j
-                s2_index = i*numb_plane*2+j+numb_plane
+                p_index = i * numb_plane + j
 
-                p3d_core = self.blocks[AstraOutputReader.p2d_block].cores[p_index]
-                abs_core = self.blocks[AstraOutputReader.abs_block].cores[r_index]
-                nfi_core = self.blocks[AstraOutputReader.nfi_block].cores[r_index]
-                sc1_core = self.blocks[AstraOutputReader.xss_block].cores[s_index]
-                sc2_core = self.blocks[AstraOutputReader.xss_block].cores[s2_index]
+                p3dn_core = self.blocks[AstraOutputReader.p3dn_block].cores[p_index]
+                p3dn_cores.append(p3dn_core)
 
-                abs_o1 = float(self.blocks[AstraOutputReader.abs_o_block].value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
-                abs_o2 = float(self.blocks[AstraOutputReader.abs_o_block].value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
-                nfi_o1 = float(self.blocks[AstraOutputReader.nfi_o_block].value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
-                nfi_o2 = float(self.blocks[AstraOutputReader.nfi_o_block].value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
-                sc1_o1 = float(self.blocks[AstraOutputReader.xss_o_block].value_dict["FIRST  LINE: GROUP 1"][i*2].replace("(", "").replace(")", ""))
-                sc1_o2 = float(self.blocks[AstraOutputReader.xss_o_block].value_dict["SECOND LINE: GROUP 2"][i*2].replace("(", "").replace(")", ""))
-                sc2_o1 = float(self.blocks[AstraOutputReader.xss_o_block].value_dict["FIRST  LINE: GROUP 1"][i*2+1].replace("(", "").replace(")", ""))
-                sc2_o2 = float(self.blocks[AstraOutputReader.xss_o_block].value_dict["SECOND LINE: GROUP 2"][i*2+1].replace("(", "").replace(")", ""))
+            p3d_cores = []
 
-                setattr(abs_core, "g1", abs_o1)
-                setattr(abs_core, "g2", abs_o2)
-                setattr(nfi_core, "g1", nfi_o1)
-                setattr(nfi_core, "g2", nfi_o2)
-                setattr(sc1_core, "g1", sc1_o1)
-                setattr(sc1_core, "g2", sc1_o2)
-                setattr(sc2_core, "g1", sc2_o1)
-                setattr(sc2_core, "g2", sc2_o2)
+            for j in range(numb_plane):
+                p_index = i * numb_plane + j
 
-                abs_cores.append(abs_core)
-                nfi_cores.append(nfi_core)
-                sc1_cores.append(sc1_core)
-                sc2_cores.append(sc2_core)
+                p3d_core = self.blocks[AstraOutputReader.p3d_block].cores[p_index]
                 p3d_cores.append(p3d_core)
+
+            i3absn_cores = []
+            i3nfin_cores = []
+            i3sc1n_cores = []
+
+            i3absn_o1 = float(self.blocks[AstraOutputReader.i3absn_o_block].
+                              value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
+            i3absn_o2 = float(self.blocks[AstraOutputReader.i3absn_o_block].
+                              value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
+            i3nfin_o1 = float(self.blocks[AstraOutputReader.i3nfin_o_block].
+                              value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
+            i3nfin_o2 = float(self.blocks[AstraOutputReader.i3nfin_o_block].
+                              value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
+            i3sc1n_o1 = float(self.blocks[AstraOutputReader.i3xssn_o_block].
+                              value_dict["FIRST  LINE: GROUP 1"][i].replace("(", "").replace(")", ""))
+            i3sc1n_o2 = float(self.blocks[AstraOutputReader.i3xssn_o_block].
+                              value_dict["SECOND LINE: GROUP 2"][i].replace("(", "").replace(")", ""))
+
+            for j in range(p_numb_plane):
+                p_index = i * p_numb_plane + j
+                i3absn_core = self.blocks[AstraOutputReader.i3absn_block].cores[p_index]
+                i3nfin_core = self.blocks[AstraOutputReader.i3nfin_block].cores[p_index]
+                i3sc1n_core = self.blocks[AstraOutputReader.i3xssn_block].cores[p_index]
+
+                setattr(i3absn_core, "g1", i3absn_o1)
+                setattr(i3absn_core, "g2", i3absn_o2)
+                setattr(i3nfin_core, "g1", i3nfin_o1)
+                setattr(i3nfin_core, "g2", i3nfin_o2)
+                setattr(i3sc1n_core, "g1", i3sc1n_o1)
+                setattr(i3sc1n_core, "g2", i3sc1n_o2)
+
+                i3absn_cores.append(i3absn_core)
+                i3nfin_cores.append(i3nfin_core)
+                i3sc1n_cores.append(i3sc1n_core)
 
             final_xs.append(([summary[i, 1],
                               summary[i, 3],
@@ -526,9 +618,31 @@ class AstraOutputReader:
                               summary[i, 9],
                               summary[i, 10],
                               summary[i, 11]],
-                             abs_cores, nfi_cores, sc1_cores, sc2_cores, p3d_cores, f2d_cores, densities))
+                             abs_core,
+                             nfi_core,
+                             sc1_core,
+                             sc2_core,
+                             p2d_core,
+                             f2d_core,
+                             densities,
+                             iabs_core,
+                             infi_core,
+                             isc1_core,
+                             iabsn_core,
+                             infin_core,
+                             isc1n_core,
+                             b2d_core,
+                             peak_core,
+                             p2dn_core,
+                             p3dn_cores,
+                             p3d_cores,
+                             i3absn_cores,
+                             i3nfin_cores,
+                             i3sc1n_cores,
+                             ))
 
         return final_xs
+
 
     def get_output_parameters(self):
 

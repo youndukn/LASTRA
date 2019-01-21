@@ -24,6 +24,7 @@ class AstraInputReader:
                        AstraBatchBlock(),
                        AstraJobBlock(main_directory)]
 
+        self.main_directory = main_directory
         self.input = input_name
         file = open(self.input, "r")
         self.input_string = file.read()
@@ -53,10 +54,12 @@ class AstraInputReader:
         :param block_name: name to
         :return:astra_block with finalized data
         """
-        # get c
+
         block_content = self.get_block_content(block_name)
 
         astra_block = self.find_astra_block(block_name)
+        astra_block.reset()
+
         key = None
         for line in str.splitlines(block_content):
             if astra_block.block_name is not line:
@@ -80,7 +83,7 @@ class AstraInputReader:
 
         return astra_block
 
-    def replace_block(self, astra_blocks):
+    def replace_block(self, astra_blocks, block_strings = []):
         """
         Replace first block with same block name
         :param astra_block:
@@ -91,27 +94,31 @@ class AstraInputReader:
         blocks = re.split(astra_blocks[0].delimiter, self.input_string)
         block_found = False
         for block in blocks:
-            for astra_block in astra_blocks:
+            for block_index, astra_block in enumerate(astra_blocks):
                 if astra_block.block_name in block:
                     block_found = True
                     break
 
             if block_found:
-                string += astra_block.print_block()
+                if len(block_strings) > 0:
+                    string += block_strings[block_index]
+                else:
+                    string += astra_block.print_block()
                 block_found = False
+
             elif len(block) > 0:
                 string += "%" + block
 
         return string
 
-    def replace_block_to_name(self, astra_blocks, name):
+    def replace_block_to_name(self, astra_blocks, name, block_string = []):
         """
         Replace first block with same block name
         :param astra_block:
         :return:
         """
         file_writer = open(name, "w")
-        file_writer.write(self.replace_block(astra_blocks))
+        file_writer.write(self.replace_block(astra_blocks, block_string))
         file_writer.close()
 
     def find_astra_block(self, block_name):

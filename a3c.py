@@ -11,10 +11,11 @@ from keras.optimizers import Adam
 import keras.backend as K
 import train_depletion
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 import random
 from collections import deque
-
+import numpy
 
 # determines how to assign values to each state, i.e. takes the state
 # and action (two-input model) and determines the corresponding value
@@ -27,9 +28,11 @@ class ActorCritic:
 
         self.learning_rate = 0.001
         self.epsilon = 1.0
-        self.epsilon_decay = .995
-        self.gamma = .95
+        self.epsilon_decay = .9999
+        self.gamma = .70
         self.tau = .125
+        self.added = 0
+        self.trained = 0
 
         # ===================================================================== #
         #                               Actor Model                             #
@@ -38,9 +41,9 @@ class ActorCritic:
         # Calculate de/dA as = de/dC * dC/dA, where e is error, C critic, A act #
         # ===================================================================== #
 
-        self.memory = deque(maxlen=2000)
-        self.actor_state_input, self.actor_model = self.create_actor_model()
-        _, self.target_actor_model = self.create_actor_model()
+        self.memory = deque(maxlen=1000)
+        self.actor_state_input, self.actor_model, self.actor_output = self.create_actor_model()
+        self.target_actor_state_input, self.target_actor_model, self.target_actor_output = self.create_actor_model()
 
         self.actor_critic_grad = tf.placeholder(tf.float32,
                                                 [None, self.env.action_space.shape[
@@ -57,14 +60,17 @@ class ActorCritic:
         # ===================================================================== #
 
         self.critic_state_input, self.critic_action_input, \
-        self.critic_model = self.create_critic_model()
-        _, _, self.target_critic_model = self.create_critic_model()
+        self.critic_model, self.critic_output = self.create_critic_model()
+        self.target_critic_state_input, \
+        self.target_critic_action_input, \
+        self.target_critic_model, \
+        self.target_critic_output = self.create_critic_model()
 
         self.critic_grads = tf.gradients(self.critic_model.output,
                                          self.critic_action_input)  # where we calcaulte de/dC for feeding above
 
         # Initialize for later gradient calculations
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
     # ========================================================================= #
     #                              Model Definitions                            #
@@ -83,7 +89,9 @@ class ActorCritic:
         model.compile(loss="mse", optimizer=adam)
         """
 
-        return train_depletion.ResNetI7_Actor(self.env.observation_space.shape, self.env.action_space.shape[0])
+        return train_depletion.ResNetI7_Actor(
+            self.env.observation_space.shape,
+            self.env.action_space.shape[0])
         #return state_input, model
 
     def create_critic_model(self):
@@ -103,7 +111,10 @@ class ActorCritic:
         adam = Adam(lr=0.001)
         model.compile(loss="mse", optimizer=adam)
         """
-        return train_depletion.ResNetI7_Critic(self.env.observation_space.shape, self.env.action_space.shape, 128)
+        return train_depletion.ResNetI7_Critic(
+            self.env.observation_space.shape,
+            self.env.action_space.shape,
+            128)
         #return state_input, action_input, model
 
     # ========================================================================= #
@@ -111,12 +122,16 @@ class ActorCritic:
     # ========================================================================= #
 
     def remember(self, cur_state, action, reward, new_state, done):
+        self.added += 1
         self.memory.append([cur_state, action, reward, new_state, done])
 
     def _train_actor(self, samples):
         for sample in samples:
             cur_state, action, reward, new_state, _ = sample
-            predicted_action = self.actor_model.predict(cur_state)
+            predicted_action = \
+                self.actor_output.eval(session=self.sess,
+                                       feed_dict={self.actor_state_input: cur_state})
+
             grads = self.sess.run(self.critic_grads, feed_dict={
                 self.critic_state_input: cur_state,
                 self.critic_action_input: predicted_action
@@ -128,24 +143,74 @@ class ActorCritic:
             })
 
     def _train_critic(self, samples):
+
         for sample in samples:
             cur_state, action, reward, new_state, done = sample
             if not done:
-                target_action = self.target_actor_model.predict(new_state)
-                future_reward = self.target_critic_model.predict(
-                    [new_state, target_action])[0][0]
+                target_action = \
+                    self.target_actor_output.eval(session=self.sess,
+                                       feed_dict={self.target_actor_state_input: new_state})
+                future_reward = \
+                    self.target_critic_output.eval(session=self.sess,
+                                                  feed_dict={
+                                                      self.target_critic_state_input: new_state,
+                                                      self.target_critic_action_input: target_action
+                                                  })[0][0]
                 reward += self.gamma * future_reward
-            self.critic_model.fit([cur_state, action], reward, verbose=0)
+            self.critic_model.fit([cur_state, action], np.array((reward,)), verbose=0)
 
-    def train(self):
+
+    def train(self, thread):
         batch_size = 32
-        if len(self.memory) < batch_size:
+
+        if self.added < batch_size:
             return
 
-        rewards = []
+        if thread != 0:
+            return
+
         samples = random.sample(self.memory, batch_size)
         self._train_critic(samples)
         self._train_actor(samples)
+
+        self.trained += 1
+        self.added = 0
+
+        if self.trained%20 == 0:
+            self.update_target()
+
+            max_index = 0
+            min_index = 0
+            max_value = 0
+            min_value = 0
+
+            for index, sample in enumerate(samples):
+                cur_state, action, reward, new_state, done = sample
+                if max_value < reward:
+                    max_value = reward
+                    max_index = index
+
+                if min_value > reward:
+                    min_value = reward
+                    min_index = index
+            cur_state, action, reward, new_state, done = samples[max_index]
+            max_reward = \
+                self.target_critic_output.eval(session=self.sess,
+                                               feed_dict={
+                                                   self.target_critic_state_input: cur_state,
+                                                   self.target_critic_action_input: action
+                                               })[0][0]
+
+            cur_state, action, reward, new_state, done = samples[0]
+            min_reward = \
+                self.target_critic_output.eval(session=self.sess,
+                                               feed_dict={
+                                                   self.target_critic_state_input: cur_state,
+                                                   self.target_critic_action_input: action
+                                               })[0][0]
+
+            print("Max : ", max_index, max_value, max_reward)
+            print("Min : ", min_index, min_value, min_reward)
 
     # ========================================================================= #
     #                         Target Model Updating                             #
@@ -157,15 +222,15 @@ class ActorCritic:
 
         for i in range(len(actor_target_weights)):
             actor_target_weights[i] = actor_model_weights[i]
-        self.target_critic_model.set_weights(actor_target_weights)
+        self.target_actor_model.set_weights(actor_target_weights)
 
     def _update_critic_target(self):
         critic_model_weights = self.critic_model.get_weights()
-        critic_target_weights = self.critic_target_model.get_weights()
+        critic_target_weights = self.target_critic_model.get_weights()
 
         for i in range(len(critic_target_weights)):
             critic_target_weights[i] = critic_model_weights[i]
-        self.critic_target_model.set_weights(critic_target_weights)
+        self.target_critic_model.set_weights(critic_target_weights)
 
     def update_target(self):
         self._update_actor_target()
@@ -175,11 +240,16 @@ class ActorCritic:
     #                              Model Predictions                            #
     # ========================================================================= #
 
-    def act(self, cur_state):
+    def act(self, cur_state, thread_id):
         self.epsilon *= self.epsilon_decay
+        return self.env.action_space.sample(), True
+        """
+        valuaded = self.actor_output.eval(session=self.sess, feed_dict={self.actor_state_input: cur_state})
+        return valuaded, False
+
         if np.random.random() < self.epsilon:
-                return self.env.action_space.sample()
-        return self.actor_model.predict(cur_state)
+        """
+
 
 
 def main():
