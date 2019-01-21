@@ -10427,7 +10427,7 @@ print(file_name)
 model = ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global((17, 17, 14, 5), classes=1)
 model.summary()
 
-model.compile(loss=custom_loss_test, optimizer=Adam(lr=0.00001), metrics=['accuracy'])
+model.compile(loss=custom_loss_test, optimizer=Adam(lr=0.0000025), metrics=['accuracy'])
 
 model.load_weights("{}.hdf5".format(file_name_load))
 
@@ -10494,7 +10494,7 @@ print(file_name)
 model = ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global((17, 17, 14, 5), classes=1)
 model.summary()
 
-model.compile(loss=custom_loss_test, optimizer=Adam(lr=0.00001), metrics=['accuracy'])
+model.compile(loss=custom_loss_test, optimizer=Adam(lr=0.0000025), metrics=['accuracy'])
 
 model.load_weights("{}.hdf5".format(file_name_load))
 
