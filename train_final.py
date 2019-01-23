@@ -99,7 +99,7 @@ def convolution_block_se_bn_jin_3d_iquad_C(X, f, filters, stage, block, s=2):
     return X
 
 
-def convolution_block_resize_3d_wopin_iquad_all_global(X, X_pin, f, filters, stage, block, s=2):
+def convolution_block_resize_3d_wopin_iquad_all_global(X, f, filters, stage, block, s=2):
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
@@ -224,9 +224,8 @@ def convolution_block_resize_3d_wopin_iquad_all_global_pin(X, X_pin, f, filters,
     return X
 
 
-def ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global(input_shape=(3, 17, 17,  3), input_shape2=(1, 128, 128, 1), classes=6):
+def ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global(input_shape=(3, 17, 17,  3), classes=6):
     X_input = Input(input_shape)
-    X_pin = Input(input_shape2)
 
     stage = 0;
     X = X_input
@@ -249,11 +248,11 @@ def ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global(input_shape=(
             stage = stage + 1
 
         stage_filters = [int(256/2), 64, 1]
-        pd_X = convolution_block_resize_3d_wopin_iquad_all_global(pd_X, X_pin, f=3, filters=stage_filters, stage=stage, block='ca_{}'.format(i), s=2)
+        pd_X = convolution_block_resize_3d_wopin_iquad_all_global(pd_X, f=3, filters=stage_filters, stage=stage, block='ca_{}'.format(i), s=2)
         pd_X = Flatten()(pd_X)
         outputs.append(pd_X)
 
-    model = Model(inputs=[X_input, X_pin], outputs=outputs, name="ResNetCen")
+    model = Model(inputs=[X_input], outputs=outputs, name="ResNetCen")
 
     return model
 
@@ -533,7 +532,7 @@ model.summary()
 
 model.compile(loss=custom_loss_test, optimizer=Adam(lr=0.0000025), metrics=['accuracy'])
 
-model.load_weights("{}.hdf5".format(file_name_load))
+#model.load_weights("{}.hdf5".format(file_name_load))
 
 #print_ixs_node_matrix_24_3d_conv_max_iquad(fxy,
 #                         karma_node,
@@ -543,10 +542,10 @@ model.load_weights("{}.hdf5".format(file_name_load))
 #                         ["/media/youndukn/lastra/3d_xs_data5/"],
 #                         False)
 
-pre_prepared = False
+pre_prepared = True
 if pre_prepared == False:
 
-    s_batch_init_temp, y_batch_init_temp = prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global(fr,
+    s_batch_init_temp,s_batch_init_temp1, y_batch_init_temp = prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global(fr,
                                                                       karma_node,
                                                                       None,
                                                                       [],
