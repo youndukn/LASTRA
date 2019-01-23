@@ -23,8 +23,10 @@ from keras.engine.topology import Layer
 from keras.engine import InputSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+import train_util as tu
+
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 cl = 0
 fxy = 9
@@ -37,101 +39,8 @@ astra = 1
 karma = 4
 karma_node = 6
 
-cl_ra, cl_rb = 10000,10000
+cl_ra, cl_rb = 10000, 10000
 fxy_ra, fxy_rb = 1, 1
-
-def gSlicer3D_C():
-    def func(x):
-        return x[:,:,:8,:8, :]
-    return Lambda(func)
-
-def nodeColPermute3D_C():
-    def func(x):
-        x = K.permute_dimensions(x[:, :, 0:1, :, :], (0, 1, 3, 2, 4))
-        return x
-    return Lambda(func)
-
-def nodeRowPermute3D_C():
-    def func(x):
-        x = K.permute_dimensions(x[:, :, :, 0:1, :], (0, 1, 3, 2, 4))
-        return x
-    return Lambda(func)
-
-def nodeCen3D_C():
-    def func(x):
-        return x[:, :, 0:1, 0:1, :]
-    return Lambda(func)
-
-def assColPermute3D_C():
-    def func(x):
-        x = K.permute_dimensions(x[:, :, 1:2, :, :], (0, 1, 3, 2, 4))
-        return x
-    return Lambda(func)
-
-def assRowPermute3D_C():
-    def func(x):
-        x = K.permute_dimensions(x[:, :, :, 1:2, :], (0, 1, 3, 2, 4))
-        return x
-    return Lambda(func)
-
-
-def assCen3D_C():
-    def func(x):
-        return x[:, :, 1:2, 1:2, :]
-    return Lambda(func)
-
-
-def isInt(s):
-    try:
-        int(s)
-        return True
-    except ValueError:
-        return False
-
-def get_files(excludes, shuffled=""):
-    files = []
-    for path in glob.glob("/media/youndukn/lastra/plants_data/*{}.inp".format(shuffled)):
-        try:
-
-            isExclude = False
-            for exclude in excludes:
-                if exclude in path:
-                    isExclude = True
-            if not isExclude:
-                file_read = open(path, 'rb')
-                files.append(file_read)
-        except:
-            pass
-
-    return files
-
-
-def get_files_with(includes, excludes, shuffled="", folders=["/media/youndukn/lastra/plants_data/"]):
-    files = []
-    for folder in folders:
-        for path in glob.glob("{}*{}*".format(folder, shuffled)):
-            try:
-
-                isInclude = False
-                for include in includes:
-                    if include in path:
-                        isInclude = True
-
-                if len(includes) == 0:
-                    isInclude = True
-
-                isExclude = False
-                for exclude in excludes:
-                    if exclude in path:
-                        isExclude = True
-
-                if isInclude and not isExclude:
-                    file_read = open(path, 'rb')
-                    files.append(file_read)
-            except:
-                pass
-
-    return files
 
 
 def convolution_block_se_bn_jin_3d_iquad_C(X, f, filters, stage, block, s=2):
@@ -148,9 +57,9 @@ def convolution_block_se_bn_jin_3d_iquad_C(X, f, filters, stage, block, s=2):
     X = Activation('relu')(X)
 
     X = ZeroPadding3D(padding=( (1, 1), (0, 1), (0, 1)))(X)
-    X_Col = nodeColPermute3D_C()(X)
-    X_Row = nodeRowPermute3D_C()(X)
-    X_Cen = nodeCen3D_C()(X)
+    X_Col = tu.nodeColPermute3D_C()(X)
+    X_Row = tu.nodeRowPermute3D_C()(X)
+    X_Cen = tu.nodeCen3D_C()(X)
     X_Row = Concatenate(axis=3)([X_Cen, X_Row])
     X = Concatenate(axis=3)([X_Col, X])
     X = Concatenate(axis=2)([X_Row, X])
@@ -189,16 +98,17 @@ def convolution_block_se_bn_jin_3d_iquad_C(X, f, filters, stage, block, s=2):
 
     return X
 
-def convolution_block_resize_3d_wopin_iquad_all_global_pin(X, X_pin, f, filters, stage, block, s=2):
+
+def convolution_block_resize_3d_wopin_iquad_all_global(X, X_pin, f, filters, stage, block, s=2):
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
     F1, F2, F3 = filters
 
     X = ZeroPadding3D(padding=( (0, 0), (0, 1), (0, 1),))(X)
-    X_Col = nodeColPermute3D_C()(X)
-    X_Row = nodeRowPermute3D_C()(X)
-    X_Cen = nodeCen3D_C()(X)
+    X_Col = tu.nodeColPermute3D_C()(X)
+    X_Row = tu.nodeRowPermute3D_C()(X)
+    X_Cen = tu.nodeCen3D_C()(X)
     X_Row = Concatenate(axis=3)([X_Cen, X_Row])
     X = Concatenate(axis=3)([X_Col, X])
     X = Concatenate(axis=2)([X_Row, X])
@@ -206,12 +116,62 @@ def convolution_block_resize_3d_wopin_iquad_all_global_pin(X, X_pin, f, filters,
                kernel_initializer=glorot_uniform(seed=0))(X)
     X = BatchNormalization()(X)
     X = Activation('relu')(X)
-    X = gSlicer3D_C()(X)
+    X = tu.gSlicer3D_C()(X)
 
     X = ZeroPadding3D(padding=((1, 1), (0, 1), (0, 1)))(X)
-    X_Col = assColPermute3D_C()(X)
-    X_Row = assRowPermute3D_C()(X)
-    X_Cen = assCen3D_C()(X)
+    X_Col = tu.assColPermute3D_C()(X)
+    X_Row = tu.assRowPermute3D_C()(X)
+    X_Cen = tu.assCen3D_C()(X)
+    X_Row = Concatenate(axis=3)([X_Cen, X_Row])
+    X = Concatenate(axis=3)([X_Col, X])
+    X = Concatenate(axis=2)([X_Row, X])
+
+    X = Conv3D(filters=F2, kernel_size=(16, 1, 1), strides=(1, 1, 1), padding='valid',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = BatchNormalization()(X)
+    X = Activation('relu')(X)
+
+    X = Conv3D(filters=F2, kernel_size=(1, f, 1), strides=(1, 1, 1), padding='valid',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = BatchNormalization()(X)
+    X = Activation('relu')(X)
+
+    X = Conv3D(filters=F2, kernel_size=(1, 1, f), strides=(1, 1, 1), padding='valid',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = BatchNormalization()(X)
+    X = Activation('relu')(X)
+
+    X = Conv3D(filters=F3, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='valid',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = Activation('relu')(X)
+
+    return X
+
+
+
+def convolution_block_resize_3d_wopin_iquad_all_global_pin(X, X_pin, f, filters, stage, block, s=2):
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+    F1, F2, F3 = filters
+
+    X = ZeroPadding3D(padding=( (0, 0), (0, 1), (0, 1),))(X)
+    X_Col = tu.nodeColPermute3D_C()(X)
+    X_Row = tu.nodeRowPermute3D_C()(X)
+    X_Cen = tu.nodeCen3D_C()(X)
+    X_Row = Concatenate(axis=3)([X_Cen, X_Row])
+    X = Concatenate(axis=3)([X_Col, X])
+    X = Concatenate(axis=2)([X_Row, X])
+    X = Conv3D(filters=F1, kernel_size=(1, 2, 2), strides=(1, 2, 2), padding='valid',
+               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = BatchNormalization()(X)
+    X = Activation('relu')(X)
+    X = tu.gSlicer3D_C()(X)
+
+    X = ZeroPadding3D(padding=((1, 1), (0, 1), (0, 1)))(X)
+    X_Col = tu.assColPermute3D_C()(X)
+    X_Row = tu.assRowPermute3D_C()(X)
+    X_Cen = tu.assCen3D_C()(X)
     X_Row = Concatenate(axis=3)([X_Cen, X_Row])
     X = Concatenate(axis=3)([X_Col, X])
     X = Concatenate(axis=2)([X_Row, X])
@@ -264,6 +224,39 @@ def convolution_block_resize_3d_wopin_iquad_all_global_pin(X, X_pin, f, filters,
     return X
 
 
+def ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global(input_shape=(3, 17, 17,  3), input_shape2=(1, 128, 128, 1), classes=6):
+    X_input = Input(input_shape)
+    X_pin = Input(input_shape2)
+
+    stage = 0;
+    X = X_input
+
+    for i in range(20):
+        stage_filters = [64, 64, 256]
+        X = convolution_block_se_bn_jin_3d_iquad_C(X, f=3, filters=stage_filters, stage=stage, block='ca_{}'.format(i), s=1)
+        X = Concatenate()([X, X_input])
+        stage = stage + 1
+
+    outputs = []
+    for i in range(classes):
+        pd_X = X
+
+        for j in range(2):
+            stage_filters = [64, 64, 256]
+            pd_X = convolution_block_se_bn_jin_3d_iquad_C(pd_X, f=3, filters=stage_filters, stage=stage,
+                                                     block='ca_{}'.format(i), s=1)
+            pd_X = Concatenate()([pd_X, X_input])
+            stage = stage + 1
+
+        stage_filters = [int(256/2), 64, 1]
+        pd_X = convolution_block_resize_3d_wopin_iquad_all_global(pd_X, X_pin, f=3, filters=stage_filters, stage=stage, block='ca_{}'.format(i), s=2)
+        pd_X = Flatten()(pd_X)
+        outputs.append(pd_X)
+
+    model = Model(inputs=[X_input, X_pin], outputs=outputs, name="ResNetCen")
+
+    return model
+
 def ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global_pin(input_shape=(3, 17, 17,  3), input_shape2=(1, 128, 128, 1), classes=6):
     X_input = Input(input_shape)
     X_pin = Input(input_shape2)
@@ -297,7 +290,64 @@ def ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global_pin(input_sha
 
     return model
 
+def prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global(optimize_id,
+                input_id,
+                model,
+                include=["y3"],
+                exclude=["y314"],
+                folders=["/media/youndukn/lastra/plants_data/"]):
+    files = tu.get_files_with(include, exclude, "", folders)
+    for file in files:
+        print(file.name)
+    print("Files {}".format(len(files)))
 
+    counter = 0
+
+    y_batch_init_temp = []
+    s_batch_init_temp = []
+    s_batch_init_temp1 = []
+
+    ffl = FFL("HIPER_U56_HANA6.FF", "/home/youndukn/Plants/db/tset/")
+
+    for i in range(1):
+        y_batch_init_temp.append([])
+
+    axial_numb = 26
+    while len(files) > 0:
+        try:
+
+            file_index = random.randrange(len(files))
+            file_read = files[file_index]
+
+            for num_batch in range(0, 20):
+                depl_set = pickle.load(file_read)
+                counter += 1
+                burnup_boc = depl_set[0]
+                s_batch_init = burnup_boc[14]
+                s_batch_init = numpy.swapaxes(s_batch_init[-19:-2, -19:-2, 6:20, :], 1, 2)
+                s_batch_init = numpy.swapaxes(s_batch_init, 0, 1)
+                s_batch_init_temp.append(s_batch_init)
+
+                y_batch_init = numpy.array(burnup_boc[2].reshape(10,10,1))[:8, :8, :].flatten()
+                y_batch_init_temp[0].append(y_batch_init)
+
+            sys.stdout.write("\rD%i" % counter)
+            sys.stdout.flush()
+
+        except (AttributeError, EOFError, ImportError) as e:
+            files.remove(file_read)
+            file_read.close()
+            pass
+
+    s_batch_init_temp = numpy.array(s_batch_init_temp, dtype=np.float16)
+    s_batch_init_temp1 = numpy.array(s_batch_init_temp1, dtype=np.float16)
+
+    """
+    for i in range(24):
+        y_batch_init_temp[i] = numpy.array(y_batch_init_temp[i], dtype=np.float16)
+    """
+    #y_batch_init_temp = numpy.array(y_batch_init_temp, dtype=np.float16)
+    return s_batch_init_temp, s_batch_init_temp1,  y_batch_init_temp
 
 
 def prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global_pin(optimize_id,
@@ -306,7 +356,7 @@ def prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global_pin(optimize_id,
                 include=["y3"],
                 exclude=["y314"],
                 folders=["/media/youndukn/lastra/plants_data/"]):
-    files = get_files_with(include, exclude, "", folders)
+    files = tu.get_files_with(include, exclude, "", folders)
     for file in files:
         print(file.name)
     print("Files {}".format(len(files)))
@@ -350,7 +400,7 @@ def prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global_pin(optimize_id,
                             if ass_burnup <= int(depl_value):
                                 ass_burnup_index = a_index
                                 break
-                        if isInt(col[1]):
+                        if tu.isInt(col[1]):
                             ahole = ffl.ff["HIPER_X"+str(col[1])+"C"][ass_burnup_index,0,:,:]
                         elif "c" == str(col[1]).lower():
                             ahole = ffl.ff["HIPER_220C"][ass_burnup_index, 0, :, :]
@@ -396,11 +446,10 @@ def prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global_pin(optimize_id,
 def custom_loss(y_true,y_pred):
     return K.mean(K.square(((y_pred - y_true))))
 
-
+"""
 #Input deck
 file_name_load ="global_all_1_large_iquad_pin_fr_3d_conv"
 file_name ="global_all_1_large_iquad_pin_fr_3d_conv"
-
 
 pre_prepared = False
 if pre_prepared == False:
@@ -441,8 +490,6 @@ else:
     file_load.close()
 
 
-
-
 model = ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global_pin((14, 17, 17, 5), (1, 128, 128, 1), classes=1)
 model.summary()
 
@@ -464,6 +511,74 @@ callbacks_list = [checkpoint]
 model.fit(x=[s_batch_init_temp, s_batch_init_temp1],
           y=y_batch_init_temp,
           batch_size=5,
+          epochs=2000,
+          validation_split=.05,
+          verbose=2,
+          callbacks=callbacks_list)
+
+"""
+
+print("PD BOC ")
+def custom_loss_test(y_true,y_pred):
+    return K.mean(K.square(((y_pred - y_true))))
+
+#Input deck
+file_name_load ="global_boc_1_large_iquad_wopin_pd_3d_conv"
+file_name ="global_boc_1_large_iquad_wopin_pd_3d_conv"
+
+print(file_name)
+
+model = ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global((14, 17, 17, 5), classes=1)
+model.summary()
+
+model.compile(loss=custom_loss_test, optimizer=Adam(lr=0.0000025), metrics=['accuracy'])
+
+model.load_weights("{}.hdf5".format(file_name_load))
+
+#print_ixs_node_matrix_24_3d_conv_max_iquad(fxy,
+#                         karma_node,
+#                         model,
+#                         ["data_1"],
+#                         [],
+#                         ["/media/youndukn/lastra/3d_xs_data5/"],
+#                         False)
+
+pre_prepared = False
+if pre_prepared == False:
+
+    s_batch_init_temp, y_batch_init_temp = prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global(fr,
+                                                                      karma_node,
+                                                                      None,
+                                                                      [],
+                                                                      [],
+                                                                      ["/media/youndukn/lastra/3d_xs_data1/",
+                                                                       "/media/youndukn/lastra/3d_xs_data2/",
+                                                                       "/media/youndukn/lastra/3d_xs_data3/",
+                                                                       "/media/youndukn/lastra/3d_xs_data4/"])
+    file_name1 = file_name+"s_batch_init_temp"
+    file_dump = open(file_name1, 'wb')
+    pickle.dump(s_batch_init_temp, file_dump, protocol=pickle.HIGHEST_PROTOCOL)
+    file_dump.close()
+    file_name1 = file_name+"y_batch_init_temp"
+    file_dump = open(file_name1, 'wb')
+    pickle.dump(y_batch_init_temp, file_dump, protocol=pickle.HIGHEST_PROTOCOL)
+    file_dump.close()
+else:
+    file_name1 = file_name+"s_batch_init_temp"
+    file_load = open(file_name1, 'rb')
+    s_batch_init_temp = pickle.load(file_load)
+    file_load.close()
+    file_name1 = file_name+"y_batch_init_temp"
+    file_load = open(file_name1, 'rb')
+    y_batch_init_temp = pickle.load(file_load)
+    file_load.close()
+
+filepath="./check_p/global_boc_1_large_iquad_wopin_pd_3d_conv_weights-improvement-{epoch:02d}-{val_loss:.4f}.hdf5"
+checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True)
+callbacks_list = [checkpoint]
+model.fit(x=s_batch_init_temp,
+          y=y_batch_init_temp,
+          batch_size=3,
           epochs=2000,
           validation_split=.05,
           verbose=2,

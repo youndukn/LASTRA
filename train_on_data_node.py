@@ -4209,9 +4209,7 @@ def prepare_ixs_bu_node_matrix_1_3d_conv_iquad_all_global(optimize_id,
                 counter += 1
                 burnup_boc = depl_set[0]
                 s_batch_init = burnup_boc[14]
-
                 s_batch_init_temp.append(s_batch_init[-19:-2, -19:-2, 6:20, :])
-
                 y_batch_init_temp1 = []
                 for bu, burnup1 in enumerate(depl_set):
                     y_batch_init = numpy.array(burnup1[optimize_id][-10:-2, -10:-2, :]).flatten()
@@ -4222,6 +4220,64 @@ def prepare_ixs_bu_node_matrix_1_3d_conv_iquad_all_global(optimize_id,
                 y_batch_init_temp2 = numpy.divide(y_batch_init_temp2, 5).astype(int)
                 y_batch_init_temp2[y_batch_init_temp2 > 1] = 1
                 y_batch_init_temp[0].append(y_batch_init_temp1)
+                #y_batch_init_temp[1].append(y_batch_init_temp2)
+
+            sys.stdout.write("\rD%i" % counter)
+            sys.stdout.flush()
+
+        except (AttributeError, EOFError, ImportError) as e:
+            files.remove(file_read)
+            file_read.close()
+            pass
+
+    s_batch_init_temp = numpy.array(s_batch_init_temp, dtype=np.float16)
+
+    """
+    for i in range(24):
+        y_batch_init_temp[i] = numpy.array(y_batch_init_temp[i], dtype=np.float16)
+    """
+    #y_batch_init_temp = numpy.array(y_batch_init_temp, dtype=np.float16)
+    return s_batch_init_temp,  y_batch_init_temp
+
+
+
+
+def prepare_ixs_bu_node_matrix_1_3d_conv_iquad_all_boc(optimize_id,
+                input_id,
+                model,
+                include=["y3"],
+                exclude=["y314"],
+                folders=["/media/youndukn/lastra/plants_data/"]):
+    files = get_files_with(include, exclude, "", folders)
+    for file in files:
+        print(file.name)
+    print("Files {}".format(len(files)))
+
+    counter = 0
+
+    y_batch_init_temp = []
+    s_batch_init_temp = []
+
+    for i in range(1):
+        y_batch_init_temp.append([])
+
+    axial_numb = 26
+    while len(files) > 0:
+        try:
+
+            file_index = random.randrange(len(files))
+            file_read = files[file_index]
+
+            for num_batch in range(0, 20):
+                depl_set = pickle.load(file_read)
+                counter += 1
+                burnup_boc = depl_set[0]
+                s_batch_init = burnup_boc[14]
+                s_batch_init_temp.append(s_batch_init[-19:-2, -19:-2, 6:20, :])
+                y_batch_init_temp1 = []
+
+                y_batch_init = numpy.array(burnup_boc[2].reshape(10,10,1))[:8, :8, :].flatten()
+                y_batch_init_temp[0].append(y_batch_init)
                 #y_batch_init_temp[1].append(y_batch_init_temp2)
 
             sys.stdout.write("\rD%i" % counter)
@@ -10481,6 +10537,7 @@ model.fit(x=s_batch_init_temp,
           callbacks=callbacks_list)
 """
 
+"""
 print("3D Fr ")
 def custom_loss_test(y_true,y_pred):
     return K.mean(K.square(((y_pred - y_true))))
@@ -10549,4 +10606,70 @@ model.fit(x=s_batch_init_temp,
 
 
 """
-"""
+
+
+print("PD BOC ")
+def custom_loss_test(y_true,y_pred):
+    return K.mean(K.square(((y_pred - y_true))))
+
+#Input deck
+file_name_load ="global_boc_1_large_iquad_wopin_pd_3d_conv"
+file_name ="global_boc_1_large_iquad_wopin_pd_3d_conv"
+
+print(file_name)
+
+model = ResNetI7_MD_BN_BU_AT_MATRIX_24_3d_dense_iquad_large_all_global((17, 17, 14, 5), classes=1)
+model.summary()
+
+model.compile(loss=custom_loss_test, optimizer=Adam(lr=0.0000025), metrics=['accuracy'])
+
+model.load_weights("{}.hdf5".format(file_name_load))
+
+#print_ixs_node_matrix_24_3d_conv_max_iquad(fxy,
+#                         karma_node,
+#                         model,
+#                         ["data_1"],
+#                         [],
+#                         ["/media/youndukn/lastra/3d_xs_data5/"],
+#                         False)
+
+pre_prepared = False
+if pre_prepared == False:
+
+    s_batch_init_temp, y_batch_init_temp = prepare_ixs_bu_node_matrix_1_3d_conv_iquad_all_global(fr,
+                                                                      karma_node,
+                                                                      None,
+                                                                      [],
+                                                                      [],
+                                                                      ["/media/youndukn/lastra/3d_xs_data1/",
+                                                                       "/media/youndukn/lastra/3d_xs_data2/",
+                                                                       "/media/youndukn/lastra/3d_xs_data3/",
+                                                                       "/media/youndukn/lastra/3d_xs_data4/"])
+    file_name1 = file_name+"s_batch_init_temp"
+    file_dump = open(file_name1, 'wb')
+    pickle.dump(s_batch_init_temp, file_dump, protocol=pickle.HIGHEST_PROTOCOL)
+    file_dump.close()
+    file_name1 = file_name+"y_batch_init_temp"
+    file_dump = open(file_name1, 'wb')
+    pickle.dump(y_batch_init_temp, file_dump, protocol=pickle.HIGHEST_PROTOCOL)
+    file_dump.close()
+else:
+    file_name1 = file_name+"s_batch_init_temp"
+    file_load = open(file_name1, 'rb')
+    s_batch_init_temp = pickle.load(file_load)
+    file_load.close()
+    file_name1 = file_name+"y_batch_init_temp"
+    file_load = open(file_name1, 'rb')
+    y_batch_init_temp = pickle.load(file_load)
+    file_load.close()
+
+filepath="./check_p/global_all_1_large_iquad_wopin_fr_3d_conv_weights-improvement-{epoch:02d}-{val_loss:.4f}.hdf5"
+checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True)
+callbacks_list = [checkpoint]
+model.fit(x=s_batch_init_temp,
+          y=y_batch_init_temp,
+          batch_size=3,
+          epochs=2000,
+          validation_split=.05,
+          verbose=2,
+          callbacks=callbacks_list)
