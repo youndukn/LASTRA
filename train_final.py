@@ -26,7 +26,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import train_util as tu
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 cl = 0
 fxy = 9
@@ -216,9 +216,7 @@ def convolution_block_resize_3d_wopin_iquad_all_global_pin(X, X_pin, f, filters,
     X = BatchNormalization()(X)
     X = Activation('relu')(X)
     X = Multiply()([X, X_pin])
-
-    X = Conv3D(filters=F3, kernel_size=(1, 16, 16,), strides=(1, 16, 16), padding='valid',
-               kernel_initializer=glorot_uniform(seed=0))(X)
+    X = MaxPooling3D(pool_size=(1, 16, 16))(X)
     X = Activation('relu')(X)
 
     return X
@@ -445,10 +443,9 @@ def prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global_pin(optimize_id,
 def custom_loss(y_true,y_pred):
     return K.mean(K.square(((y_pred - y_true))))
 
-"""
 #Input deck
 file_name_load ="global_all_1_large_iquad_pin_fr_3d_conv"
-file_name ="global_all_1_large_iquad_pin_fr_3d_conv"
+file_name ="max_global_all_1_large_iquad_pin_fr_3d_conv"
 
 pre_prepared = False
 if pre_prepared == False:
@@ -504,7 +501,7 @@ model.compile(loss=custom_loss, optimizer=Adam(lr=0.0000025), metrics=['accuracy
 #                         ["/media/youndukn/lastra/3d_xs_data5/"],
 #                         False)
 
-filepath="./check_p/global_all_1_large_iquad_pin_fr_3d_conv_weights-improvement-{epoch:02d}-{val_loss:.5f}.hdf5"
+filepath="./check_p/max_global_all_1_large_iquad_pin_fr_3d_conv_weights-improvement-{epoch:02d}-{val_loss:.5f}.hdf5"
 checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True)
 callbacks_list = [checkpoint]
 model.fit(x=[s_batch_init_temp, s_batch_init_temp1],
@@ -514,9 +511,10 @@ model.fit(x=[s_batch_init_temp, s_batch_init_temp1],
           validation_split=.05,
           verbose=2,
           callbacks=callbacks_list)
-
 """
 
+"""
+"""
 print("PD BOC ")
 def custom_loss_test(y_true,y_pred):
     return K.mean(K.square(((y_pred - y_true))))
@@ -582,3 +580,4 @@ model.fit(x=s_batch_init_temp,
           validation_split=.05,
           verbose=2,
           callbacks=callbacks_list)
+"""
