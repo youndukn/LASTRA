@@ -637,7 +637,7 @@ def custom_loss(y_true,y_pred):
 file_name_load ="global_all_1_large_iquad_pin_fr_3d_conv"
 file_name ="global_all_1_large_iquad_pin_fr_3d_conv"
 
-pre_prepared = False
+pre_prepared = True
 if pre_prepared == False:
 
     s_batch_init_temp, s_batch_init_temp1, y_batch_init_temp = prepare_ixs_bu_node_matrix_1_3d_conv_iquad_boc_global_pin(fr,
@@ -691,6 +691,7 @@ print_ixs_node_matrix_24_3d_conv_max_iquad_all(fxy,
                          ["/media/youndukn/lastra/3d_xs_data5/"],
                          False)
 
+"""
 filepath="./check_p/global_all_1_large_iquad_pin_fr_3d_conv_weights-improvement-{epoch:02d}-{val_loss:.5f}.hdf5"
 checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True)
 callbacks_list = [checkpoint]
@@ -701,7 +702,6 @@ model.fit(x=[s_batch_init_temp, s_batch_init_temp1],
           validation_split=.05,
           verbose=2,
           callbacks=callbacks_list)
-"""
 
 """
 """
