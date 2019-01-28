@@ -683,7 +683,7 @@ model.compile(loss=custom_loss, optimizer=Adam(lr=0.0000025), metrics=['accuracy
 
 model.load_weights("{}.hdf5".format(file_name_load))
 
-print_ixs_node_matrix_24_3d_conv_max_iquad_all(fxy,
+print_ixs_node_matrix_24_3d_conv_max_iquad_all(fr,
                          karma_node,
                          model,
                          ["data_1"],
